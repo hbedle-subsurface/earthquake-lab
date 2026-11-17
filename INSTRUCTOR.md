@@ -2,8 +2,10 @@
 
 ## Time and fit
 
-- About 2 hours of student work (1.5 to 3 hours depending on the student).
-- Works on a laptop or a tablet. A phone works but is cramped for steps 2, 4 and 5.
+- About 1 to 1.5 hours of student work. Quick students finish in under an hour, and students who need a lot of hints can take closer to 2 hours.
+- Built for a laptop: the panel and the instructions sit side by side and fit on the screen, so there is no scrolling up and down between them. A tablet works too. A phone works but is cramped for steps 2, 4 and 5.
+- Every click-to-measure step also has a type-in box (arrival times, epicenter latitude and longitude, amplitudes), so the whole lab can be done with a keyboard. Reading the seismograms is still a visual task, so a student who uses a screen reader would need an accommodation, such as a table of the arrival times and amplitudes from the verify page.
+- Each step has a "Stuck, or something not working?" box covering lost progress, pop-up blockers, and sending you a Canvas message with their scenario number.
 - No login and no data leaves the student's browser. Progress is saved in that browser, so students should finish on the same device.
 
 ## Course learning outcomes it supports
@@ -34,7 +36,7 @@ Each student's name gets a new random scenario, so classmates have different sta
 >
 > Open the lab at https://hbedle-subsurface.github.io/earthquake-lab/ and enter your name exactly as it appears in Canvas. Work through all eight steps. Each step checks your answers, and there are hints if you get stuck. When you finish, take a screenshot of your full certificate (or save it as a PDF) and upload it here.
 >
-> Plan on about two hours. Your progress is saved in your browser, so you can stop and come back, but use the same computer and browser to finish.
+> Plan on about an hour and a half. Your progress is saved in your browser, so you can stop and come back, but use the same computer and browser to finish.
 
 ## Publishing on GitHub Pages (web interface)
 

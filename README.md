@@ -17,7 +17,7 @@ I built this lab for my online gen ed course on volcanoes and earthquakes at the
 7. **Seconds of warning** - see how earthquake early warning (ShakeAlert) uses the gap between P and S waves.
 8. **How big is big?** - compare the energy of their earthquake with Pawnee, Oklahoma (2016), Nisqually (2001) and the Cascadia earthquake of 1700.
 
-Every step has something to move or tap, checks answers as students go, and has plain-language hints. When all eight steps are done, the lab makes a certificate with a verification code that students upload to the course site. Most students need about two hours.
+Every step has something to move or tap, checks answers as students go, and has plain-language hints. When all eight steps are done, the lab makes a certificate with a verification code that students upload to the course site. Most students need about an hour to an hour and a half.
 
 Words with a dotted underline open a short glossary entry. The interactive panel and the instructions can each be popped out into their own window.
 

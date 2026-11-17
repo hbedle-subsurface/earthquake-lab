@@ -19,9 +19,19 @@
     radii: [null, null, null], epi: null, amps: [null, null, null], mags: [null, null, null], answers: {}, completedAt: null });
   let S = blank();
   try { const raw = localStorage.getItem(STORE); if (raw) S = Object.assign(blank(), JSON.parse(raw)); } catch (e) { /* storage unavailable */ }
-  const save = () => { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) { /* ignore */ } };
+  const storageOK = (() => { try { localStorage.setItem('eqlab-test', '1'); const ok = localStorage.getItem('eqlab-test') === '1'; localStorage.removeItem('eqlab-test'); return ok; } catch (e) { return false; } })();
+  let saveFailed = !storageOK;
+  const save = () => { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) { if (!saveFailed) { saveFailed = true; showStorageWarning(); } } };
+  function showStorageWarning() {
+    const col = document.getElementById('stepCol'); if (!col || document.getElementById('storeWarn')) return;
+    const w = document.createElement('div'); w.id = 'storeWarn'; w.className = 'warn-banner';
+    w.innerHTML = '<strong>Warning: this browser is not saving your work.</strong> If you close or reload this page, you will have to start over. Finish the lab in one sitting, or open it in a regular (not private or incognito) window of Chrome, Edge, Firefox or Safari.';
+    col.insertBefore(w, col.firstChild);
+  }
+  window.addEventListener('beforeunload', e => { if (saveFailed && S.seed != null && !S.completedAt) { e.preventDefault(); e.returnValue = ''; } });
 
   let SC = null, TR = null;
+  const REF = {};   // links panel figures and the typed-entry boxes
   function loadScenario() {
     if (S.seed == null) { SC = null; TR = null; return; }
     SC = EQ.build(S.seed);
@@ -101,16 +111,20 @@
     const g = svg('g', { stroke: '#ffffff', 'stroke-width': 0.7, opacity: 0.7 }, s);
     for (let la = 44; la <= 49; la++) { const [, y] = proj(la, 0); svg('line', { x1: 0, x2: MAP.W, y1: y, y2: y }, g); }
     for (let lo = -126; lo <= -119; lo++) { const [x] = proj(45, lo); svg('line', { x1: x, x2: x, y1: 0, y2: MAP.H }, g); }
+
     svg('polygon', { points: pts(MAINLAND), fill: '#f3ead7', stroke: '#b9a77f', 'stroke-width': 1 }, s);
     svg('polygon', { points: pts(VANISLAND), fill: '#f3ead7', stroke: '#b9a77f', 'stroke-width': 1 }, s);
     svg('polyline', { points: pts(COLUMBIA), fill: 'none', stroke: '#6fa8d6', 'stroke-width': 2 }, s);
+    const gl = { 'font-size': 10, fill: '#3d6f96', 'font-weight': 600, 'paint-order': 'stroke', stroke: '#ffffff', 'stroke-width': 2.5 };
+    for (let la = 44; la <= 49; la++) { const [, y] = proj(la, 0); txt(s, 3, y - 3, la + '\u00b0N', gl); }
+    for (let lo = -126; lo <= -121; lo++) { const [x] = proj(45, lo); txt(s, x + 2, MAP.H - 5, Math.abs(lo) + '\u00b0W', gl); }
     // borders
     const bd = { fill: 'none', stroke: '#9a8f7a', 'stroke-width': 1, 'stroke-dasharray': '5 4' };
     svg('polyline', Object.assign({ points: pts([[48.3, -124.73], [48.25, -123.6], [48.42, -123.18], [48.75, -123.02], [49.0, -123.05], [49.0, -118.4]]) }, bd), s);
     svg('polyline', Object.assign({ points: pts([[46.0, -118.92], [46.0, -118.4]]) }, bd), s);
     const lab = { 'font-size': 13, fill: '#8a7a5a', 'font-style': 'italic', 'text-anchor': 'middle' };
     txt(s, ...proj(48.35, -119.5), 'WASHINGTON', lab);
-    txt(s, ...proj(44.95, -119.6), 'OREGON', lab);
+    txt(s, ...proj(45.25, -119.9), 'OREGON', lab);
     txt(s, ...proj(49.3, -120.4), 'BRITISH COLUMBIA', lab);
     txt(s, ...proj(44.2, -125.9), 'Pacific Ocean', Object.assign({}, lab, { fill: '#4a7fa8' }));
     // trench with teeth on the overriding plate side
@@ -123,14 +137,14 @@
     txt(s, ...proj(45.75, -126.55), 'Cascadia', { 'font-size': 12, fill: RED, 'font-weight': 700 });
     txt(s, ...proj(45.6, -126.55), 'subduction', { 'font-size': 12, fill: RED, 'font-weight': 700 });
     txt(s, ...proj(45.45, -126.55), 'zone', { 'font-size': 12, fill: RED, 'font-weight': 700 });
-    txt(s, ...proj(47.0, -126.35), 'Juan de Fuca', { 'font-size': 11, fill: '#2c5d85', 'text-anchor': 'start' });
-    txt(s, ...proj(46.87, -126.35), 'plate', { 'font-size': 11, fill: '#2c5d85', 'text-anchor': 'start' });
-    const [ax, ay] = proj(46.55, -126.4);
+    txt(s, ...proj(46.82, -126.35), 'Juan de Fuca', { 'font-size': 11, fill: '#2c5d85', 'text-anchor': 'start' });
+    txt(s, ...proj(46.69, -126.35), 'plate', { 'font-size': 11, fill: '#2c5d85', 'text-anchor': 'start' });
+    const [ax, ay] = proj(46.4, -126.4);
     svg('line', { x1: ax, y1: ay, x2: ax + 34, y2: ay - 10, stroke: '#2c5d85', 'stroke-width': 2.5, 'marker-end': 'url(#arr)' }, s);
     const defs = svg('defs', {}, s);
     const mk = svg('marker', { id: 'arr', viewBox: '0 0 10 10', refX: 8, refY: 5, markerWidth: 6, markerHeight: 6, orient: 'auto' }, defs);
     svg('path', { d: 'M0,0 L10,5 L0,10 z', fill: '#2c5d85' }, mk);
-    txt(s, ...proj(43.75, -119.9), 'North American plate', { 'font-size': 11, fill: '#7a6a4a', 'text-anchor': 'middle' });
+    txt(s, ...proj(44.6, -119.5), 'North American plate', { 'font-size': 11, fill: '#7a6a4a', 'text-anchor': 'middle' });
     // volcanoes
     for (const [n, la, lo] of VOLCANOES) {
       const [x, y] = proj(la, lo);
@@ -157,7 +171,8 @@
       const [x, y] = proj(st.lat, st.lon);
       svg('polygon', { points: `${x - 7},${y - 6} ${x + 7},${y - 6} ${x},${y + 7}`, fill: ST_COLORS[i], stroke: '#fff', 'stroke-width': 1.2 }, s);
       if (labels) {
-        const t = txt(s, x + 9, y + 4, st.name, { 'font-size': 12, 'font-weight': 700, fill: ST_COLORS[i] });
+        const east = st.lon > -119.6;
+        const t = txt(s, east ? x - 9 : x + 9, y + 4, st.name, { 'font-size': 12, 'font-weight': 700, fill: ST_COLORS[i], 'text-anchor': east ? 'end' : 'start' });
         t.setAttribute('paint-order', 'stroke'); t.setAttribute('stroke', '#fff'); t.setAttribute('stroke-width', 3);
       }
     });
@@ -280,7 +295,8 @@
     nx.onclick = () => go(S.step + 1);
     if (S.done[S.step]) { nx.hidden = false; st.className = 'status ok'; st.textContent = 'This step is complete.'; }
     row.append(b, st, nx);
-    return row;
+    const wrap = h('div'); wrap.append(row, h('div', '', stuckBox()));
+    return wrap;
   }
   // multiple-choice question
   function mcq(key, prompt, options, correct, right, wrong) {
@@ -297,6 +313,14 @@
     };
     return q;
   }
+  function stuckBox() {
+    return `<details class="hint stuck"><summary>Stuck, or something not working?</summary><div>
+      <p><strong>Stuck on the science?</strong> Open the hints above, and click any underlined word for a short explanation. Each check tells you which answer to look at again, so change one thing at a time and check again.</p>
+      <p><strong>Lost your progress?</strong> Your work is saved in this browser on this computer. A private or incognito window, a different browser or a different computer starts fresh. Go back to the same browser and it will be there.</p>
+      <p><strong>Pop-out button does nothing?</strong> Your browser is blocking pop-ups. The lab works fine without them.</p>
+      <p><strong>Still stuck?</strong> Send your instructor a Canvas message with your scenario number (${S.seed ?? '-'}), the step, and a screenshot.</p>
+    </div></details>`;
+  }
   function hint(html, title = 'Need a hint?') { return `<details class="hint poptext"><summary>${title}</summary><div>${html}</div></details>`; }
 
   // ===== Step 0: Start =====
@@ -309,28 +333,55 @@
     content(c) {
       c.innerHTML = `<h2>Find the Earthquake</h2>
       <div class="poptext">
-      <p>The Pacific Northwest has earthquakes every day, and most of them are too small for anyone to feel. The whole region is above the ${T('cascadia', 'Cascadia subduction zone')}, the red line offshore on the map, where the ${T('juan-de-fuca', 'Juan de Fuca plate')} sinks beneath the ${T('north-american', 'North American plate')}.</p>
-      <p>In this lab we're going to work an earthquake the way a seismologist does. We'll read the ${T('seismogram', 'seismograms')} from three ${T('station', 'seismic stations')}, turn them into distances, find the ${T('epicenter', 'epicenter')} on the map, and measure the ${T('magnitude', 'magnitude')}. Then we'll look at what kind of earthquake it was, how much warning nearby cities could get, and how it compares with the big ones.</p>
-      <p>The earthquake is built just for you from your name, so your numbers will be different from everyone else's. Every step checks your answers, and the hints are there to help, so take your time. Most people need about two hours. When all eight steps are done, you'll get a certificate to upload to Canvas.</p>
-      <p class="small">Words with a dotted underline open a short explanation when clicked. The two pop-out buttons at the top open the panel or these instructions in their own window. Your progress is saved in this browser.</p>
+      <p>The Pacific Northwest has earthquakes every day, and most are too small to feel. The region is above the ${T('cascadia', 'Cascadia subduction zone')}, the red line offshore on the map, where the ${T('juan-de-fuca', 'Juan de Fuca plate')} sinks beneath North America.</p>
+      <p>In this lab we work one earthquake the way a seismologist does: read the ${T('seismogram', 'seismograms')} from three stations, find the ${T('epicenter', 'epicenter')}, and measure the ${T('magnitude', 'magnitude')}. Then we look at what kind of earthquake it was and what it means for the people nearby.</p>
+      <p>Your earthquake is made from your name, so your numbers are different from everyone else's. Each step checks your answers and has hints. It takes about an hour to an hour and a half, and at the end you get a certificate to upload to Canvas.</p>
+      <p class="small">Click any word with a dotted underline for a short explanation.</p>
+      </div>
+      <div class="warn-box">
+        <strong>Before you start</strong>
+        <ul>
+          <li>Use a laptop or desktop computer with Chrome, Edge, Firefox or Safari.</li>
+          <li><strong>Do not use a private or incognito window.</strong> Your work will not be saved.</li>
+          <li>Your work saves automatically, so you can stop and come back. Come back on the <strong>same computer and the same browser</strong>.</li>
+          <li>When you get your <strong>scenario number</strong>, write it down. It is your backup if anything goes wrong.</li>
+        </ul>
       </div>`;
       const box = h('div', 'q');
       if (S.seed == null) {
-        box.innerHTML = `<div class="prompt">Type your name the way it appears in Canvas</div>`;
-        const inp = document.createElement('input'); inp.className = 'name-in'; inp.type = 'text'; inp.placeholder = 'First and last name';
+        box.innerHTML = `<div class="prompt">New to the lab? Type your first and last name the way it appears in Canvas</div>`;
+        const inp = document.createElement('input'); inp.className = 'name-in'; inp.type = 'text'; inp.placeholder = 'First and last name'; inp.setAttribute('aria-label', 'Your first and last name');
         const b = h('button', 'btn', 'Make my earthquake'); b.type = 'button'; b.style.marginLeft = '8px';
         const fb = h('div', 'fb');
         b.onclick = () => {
           const nm = inp.value.trim().replace(/\s+/g, ' ');
           if (nm.length < 3 || !/\s/.test(nm)) { fb.textContent = 'Please enter your first and last name.'; box.className = 'q bad'; return; }
-          S = blank(); S.name = nm; S.seed = 10000 + Math.floor(Math.random() * 89999); S.done[0] = true; save(); loadScenario(); go(1);
+          S = blank(); S.name = nm; S.seed = 10000 + Math.floor(Math.random() * 89999); S.done[0] = true; save(); loadScenario();
+          alert(`Your scenario number is ${S.seed}.\n\nWrite it down now. If you switch computers or browsers, or lose your work, you can use it with your name on the Start page to get the same earthquake back.`);
+          go(1);
         };
         box.append(inp, b, fb);
+        const rbox = h('div', 'q');
+        rbox.innerHTML = `<div class="prompt">Already started on another computer or browser?</div>
+          <p class="small" style="margin:0 0 6px">Type the same name and your scenario number to get the same earthquake back. You will go through the steps again, but with the same numbers, so it goes faster.</p>`;
+        const rn = document.createElement('input'); rn.className = 'name-in'; rn.type = 'text'; rn.placeholder = 'First and last name'; rn.setAttribute('aria-label', 'Your first and last name');
+        const rs = document.createElement('input'); rs.type = 'number'; rs.placeholder = 'Scenario number'; rs.setAttribute('aria-label', 'Your scenario number');
+        rs.style.cssText = 'font:inherit;padding:8px 10px;width:170px;border:1px solid #aab;border-radius:6px;margin-left:8px';
+        const rb = h('button', 'btn secondary', 'Continue my earthquake'); rb.type = 'button'; rb.style.marginLeft = '8px';
+        const rfb = h('div', 'fb');
+        rb.onclick = () => {
+          const nm = rn.value.trim().replace(/\s+/g, ' '), sd = parseInt(rs.value, 10);
+          if (nm.length < 3 || !/\s/.test(nm)) { rfb.textContent = 'Please enter your first and last name.'; rbox.className = 'q bad'; return; }
+          if (!(sd >= 10000 && sd <= 99999)) { rfb.textContent = 'The scenario number has five digits.'; rbox.className = 'q bad'; return; }
+          S = blank(); S.name = nm; S.seed = sd; S.done[0] = true; save(); loadScenario(); go(1);
+        };
+        rbox.append(rn, rs, rb, rfb);
+        c.append(box); box.after(rbox); return;
       } else {
-        box.innerHTML = `<div class="prompt">Welcome back, ${escapeHtml(S.name)}.</div><p>Your earthquake is scenario number <strong>${S.seed}</strong>.</p>`;
-        const b = h('button', 'btn', 'Continue'); b.type = 'button'; b.onclick = () => go(firstOpen());
-        const r = h('button', 'btn secondary', 'Start over with a new name'); r.type = 'button'; r.style.marginLeft = '8px';
-        r.onclick = () => { if (confirm('Start over? Your saved progress in this browser will be cleared.')) { S = blank(); save(); loadScenario(); go(0); } };
+        box.innerHTML = `<div class="prompt">Welcome back, ${escapeHtml(S.name)}.</div><p>Your earthquake is scenario number <strong>${S.seed}</strong>. Your work so far is saved.</p>`;
+        const b = h('button', 'btn', 'Continue where I left off'); b.type = 'button'; b.onclick = () => go(firstOpen());
+        const r = h('button', 'btn secondary', 'Start over'); r.type = 'button'; r.style.marginLeft = '8px';
+        r.onclick = () => { if (confirm('Are you sure? Starting over ERASES your work in this browser and gives you a NEW earthquake.\n\nIf you just want to keep going, click Cancel, then "Continue where I left off".')) { S = blank(); save(); loadScenario(); go(0); } };
         box.append(b, r);
       }
       c.append(box);
@@ -384,7 +435,7 @@
   def({
     tab: '2. Read the seismograms',
     panel(p) {
-      p.append(h('p', 'panel-title', 'Your three stations - tap to mark the P and S arrivals'));
+      p.append(h('p', 'panel-title', 'Your three stations - click to mark the P and S arrivals'));
       const ctr = h('div', 'controls');
       const seg = h('div', 'seg');
       const bp = h('button', '', 'Marking: P wave'), bs = h('button', '', 'Marking: S wave');
@@ -395,7 +446,7 @@
       const clr = h('button', 'btn secondary', 'Clear my marks'); clr.type = 'button'; clr.style.padding = '5px 10px';
       ctr.append(seg, clr, h('span', 'small', 'Each seismogram has its own vertical scale. Time is the same for all three.'));
       p.append(ctr);
-      const fig = drawSeis(p, {
+      const fig = REF.seis = drawSeis(p, {
         traces: stationTraces(false), picks: S.picks,
         onTap: (i, t) => {
           S.picks[i][pickMode] = Math.round(t * 10) / 10;
@@ -410,13 +461,13 @@
       <div class="poptext">
       <p>Here are the seismograms from your three stations, ${SC.stations.map((s, i) => stChip(i)).join(', ')}. Each one records two minutes of ground motion, and time zero is the same moment for all three, so we can compare them directly.</p>
       <p>Our job is to mark when the P wave arrived and when the S wave arrived at each station. The lab then works out the S-P time for us.</p>
-      <div class="how"><strong>How:</strong> choose <em>Marking: P wave</em> above the seismograms, then tap where the P wave begins on each station. Then switch to <em>Marking: S wave</em> and do the same. Tap again to move a mark.</div>
+      <div class="how"><strong>How:</strong> choose <em>Marking: P wave</em> above the seismograms, then click where the P wave begins on each station. Then switch to <em>Marking: S wave</em> and do the same. Click again to move a mark. You can also type the times in the table.</div>
       ${hint('Before the P wave, the line is quiet with only tiny wiggles - that\'s background noise. The P wave is the first place where the wiggles clearly start to grow. Mark that first change, not the biggest peak.', 'Hint: finding the P wave')}
       ${hint('After the P wave, the wiggles settle down a little. The S wave is where the shaking suddenly gets much bigger. Mark the start of the big wiggles, not the tallest peak.', 'Hint: finding the S wave')}
       ${hint('The stations are listed from nearest to farthest, so the S-P time should get bigger from the top seismogram to the bottom one. If it doesn\'t, one of the marks is probably off.', 'Hint: a quick check')}
       </div>
       <table class="data" id="pickTable"></table>`;
-      const q = h('div', 'q'); q.innerHTML = '<div class="fb"></div>';
+      const q = h('div', 'q fbonly'); q.innerHTML = '<div class="fb"></div>';
       c.append(q, checkRow(() => {
         const msgs = []; let ok = true;
         SC.stations.forEach((st, i) => {
@@ -435,8 +486,25 @@
   });
   function updateTable() {
     const t = stepEl.querySelector('#pickTable'); if (!t) return;
-    t.innerHTML = '<tr><th>Station</th><th>P arrival (s)</th><th>S arrival (s)</th><th>S-P time (s)</th></tr>' +
-      SC.stations.map((st, i) => { const pk = S.picks[i]; return `<tr><td>${stChip(i)}</td><td>${fmt(pk.p)}</td><td>${fmt(pk.s)}</td><td>${pk.p != null && pk.s != null ? fmt(pk.s - pk.p) : '-'}</td></tr>`; }).join('');
+    if (!t.dataset.built) {
+      t.dataset.built = '1';
+      t.innerHTML = '<tr><th>Station</th><th>P arrival (s)</th><th>S arrival (s)</th><th>S-P time (s)</th></tr>' +
+        SC.stations.map((st, i) => `<tr><td>${stChip(i)}</td>` +
+          ['p', 's'].map(w => `<td><input type="number" class="pk" step="0.1" min="0" max="120" data-i="${i}" data-w="${w}" aria-label="${st.name} ${w.toUpperCase()} arrival in seconds"></td>`).join('') +
+          `<td class="sp${i}">-</td></tr>`).join('');
+      t.addEventListener('input', e => {
+        const el = e.target; if (!el.classList.contains('pk')) return;
+        S.picks[+el.dataset.i][el.dataset.w] = el.value === '' ? null : +el.value;
+        save(); if (REF.seis) REF.seis.redraw(); updateTable();
+      });
+    }
+    SC.stations.forEach((st, i) => {
+      const pk = S.picks[i];
+      t.querySelectorAll(`input[data-i="${i}"]`).forEach(inp => {
+        if (inp !== document.activeElement) inp.value = pk[inp.dataset.w] == null ? '' : (+pk[inp.dataset.w]).toFixed(1);
+      });
+      t.querySelector('.sp' + i).textContent = pk.p != null && pk.s != null ? (pk.s - pk.p).toFixed(1) : '-';
+    });
   }
   const pickSP = i => S.picks[i].s - S.picks[i].p;
 
@@ -489,7 +557,7 @@
       tb.innerHTML = '<tr><th>Station</th><th>S-P time (s)</th><th>Distance (km)</th></tr>' + SC.stations.map((st, i) =>
         `<tr><td>${stChip(i)}</td><td>${pickSP(i).toFixed(1)}</td><td><input type="number" min="0" max="500" step="1" data-i="${i}" value="${S.dists[i] ?? ''}"></td></tr>`).join('');
       tb.addEventListener('input', e => { const i = +e.target.dataset.i; S.dists[i] = e.target.value === '' ? null : +e.target.value; S.radii[i] = S.dists[i]; save(); });
-      const q = h('div', 'q'); q.innerHTML = '<div class="fb"></div>';
+      const q = h('div', 'q fbonly'); q.innerHTML = '<div class="fb"></div>';
       c.append(tb, q, checkRow(() => {
         const msgs = []; let ok = true;
         SC.stations.forEach((st, i) => {
@@ -509,8 +577,8 @@
   def({
     tab: '4. Find the epicenter',
     panel(p) {
-      p.append(h('p', 'panel-title', 'Draw a circle around each station, then tap where they meet'));
-      const row = h('div', 'panel-row'); const left = h('div', 'grow'), side = h('div', 'side');
+      p.append(h('p', 'panel-title', 'Draw a circle around each station, then click where they meet'));
+      const row = h('div', 'panel-row keep'); const left = h('div', 'grow'), side = h('div', 'side');
       left.style.maxWidth = '620px'; row.append(left, side); p.append(row);
       const s = drawMap(left);
       const cg = svg('g', {}, s); drawStations(s);
@@ -525,30 +593,43 @@
         while (eg.firstChild) eg.removeChild(eg.firstChild);
         if (S.epi) { const [x, y] = proj(S.epi.lat, S.epi.lon); star(eg, x, y, 11, RED); }
         if (S.done[4]) { const [x, y] = proj(SC.lat, SC.lon); svg('circle', { cx: x, cy: y, r: 6, fill: 'none', stroke: '#111', 'stroke-width': 2 }, eg); txt(eg, x + 9, y + 16, 'actual epicenter', { 'font-size': 11, 'font-weight': 700 }); }
-        ro.innerHTML = S.epi ? `Your epicenter: ${S.epi.lat.toFixed(2)}°N, ${Math.abs(S.epi.lon).toFixed(2)}°W` : 'Tap the map to place your epicenter.';
+        ro.innerHTML = S.epi ? `Your epicenter: ${S.epi.lat.toFixed(2)}°N, ${Math.abs(S.epi.lon).toFixed(2)}°W` : 'Click the map to place your epicenter.';
       };
       s.addEventListener('pointerdown', e => {
         const pt = svgPoint(s, e); const [lat, lon] = unproj(pt.x, pt.y);
-        S.epi = { lat, lon }; save(); draw();
+        S.epi = { lat, lon }; save(); draw(); if (REF.syncEpi) REF.syncEpi();
       });
+      REF.mapDraw = draw;
       s.style.cursor = 'crosshair';
       const ctr = h('div'); ctr.style.display = 'grid'; ctr.style.gap = '6px';
       SC.stations.forEach((st, i) => {
         const sl = slider(`<span class="chip" style="background:${ST_COLORS[i]}"></span>${st.name}:<br>`, 0, 400, 1, S.radii[i] ?? S.dists[i] ?? 100, 'km', v => { S.radii[i] = v; save(); draw(); });
         sl.input.style.width = '190px'; ctr.append(sl.wrap);
       });
-      side.append(ctr, h('div', 'small', '<br>The sliders start at your distances from step 3. Tap the map to place the red star.'), ro);
+      side.append(ctr, h('div', 'small', '<br>The sliders start at your distances from step 3.'), ro);
       draw();
     },
     content(c) {
       c.innerHTML = `<h2>Find the epicenter</h2>
       <div class="poptext">
       <p>One distance tells us the earthquake happened somewhere on a circle around that station, but not where on the circle. Two circles usually cross in two places. The third circle picks between them, and so where all three circles meet is the ${T('epicenter', 'epicenter')}, the point on the surface above where the fault slipped. This is ${T('triangulation', 'triangulation')}, and seismologists still use the same idea today with many more stations and a computer.</p>
-      <div class="how"><strong>How:</strong> the circles are already drawn from your distances. Tap the map where all three circles meet to place the red star, then check your answer.</div>
-      ${hint('If the three circles don\'t meet at exactly one point, tap in the middle of the small area where all three overlap.')}
+      <div class="how"><strong>How:</strong> the circles are already drawn from your distances. Click the map where all three circles meet to place the red star, then check your answer. You can also type the location below, using the latitude and longitude numbers on the edges of the map.</div>
+      ${hint('If the three circles don\'t meet at exactly one point, click in the middle of the small area where all three overlap.')}
       ${hint('When the circles overlap a lot and never meet at a single point, that\'s a clue the earthquake was deep. Our distances are measured to the hypocenter underground, so the circles on the surface come out a little too big. We\'ll come back to this in step 6.', 'Hint: circles that overlap too much')}
       </div>`;
-      const q = h('div', 'q'); q.innerHTML = '<div class="fb"></div>';
+      const ll = h('div', 'q');
+      ll.innerHTML = `<div class="prompt">Epicenter location</div>
+        Latitude <input type="number" step="0.01" min="43.5" max="49.5" class="lat" aria-label="Epicenter latitude in degrees north"> \u00b0N &nbsp;
+        Longitude <input type="number" step="0.01" min="118" max="127" class="lon" aria-label="Epicenter longitude in degrees west"> \u00b0W`;
+      const latIn = ll.querySelector('.lat'), lonIn = ll.querySelector('.lon');
+      REF.syncEpi = () => { if (S.epi) { if (latIn !== document.activeElement) latIn.value = S.epi.lat.toFixed(2); if (lonIn !== document.activeElement) lonIn.value = Math.abs(S.epi.lon).toFixed(2); } };
+      ll.addEventListener('input', () => {
+        const la = parseFloat(latIn.value), lo = parseFloat(lonIn.value);
+        if (la >= 43.5 && la <= 49.5 && lo >= 118 && lo <= 127) { S.epi = { lat: la, lon: -lo }; save(); if (REF.mapDraw) REF.mapDraw(); }
+      });
+      REF.syncEpi();
+      c.append(ll);
+      const q = h('div', 'q fbonly'); q.innerHTML = '<div class="fb"></div>';
       const rv = h('div', 'reveal'); rv.hidden = !S.done[4];
       const fillReveal = () => {
         const err = S.epi ? EQ.haversineKm(S.epi.lat, S.epi.lon, SC.lat, SC.lon) : 0;
@@ -556,7 +637,7 @@
       };
       if (S.done[4]) fillReveal();
       c.append(q, checkRow(() => {
-        if (!S.epi) { q.className = 'q bad'; q.querySelector('.fb').textContent = 'Tap the map to place your epicenter first.'; return false; }
+        if (!S.epi) { q.className = 'q bad'; q.querySelector('.fb').textContent = 'Click the map, or type a latitude and longitude, to place your epicenter first.'; return false; }
         const err = EQ.haversineKm(S.epi.lat, S.epi.lon, SC.lat, SC.lon);
         const tol = 25 + 0.4 * SC.depth;
         const ok = err <= tol;
@@ -574,13 +655,14 @@
     tab: '5. How big?',
     panel(p) {
       p.append(h('p', 'panel-title', 'Measure the biggest wiggle, then read the magnitude off the nomogram'));
-      const row = h('div', 'panel-row'); const left = h('div', 'grow'), side = h('div', 'side');
+      const row = h('div', 'panel-row'); const left = h('div', 'grow'), side = h('div', 'side nomo');
       row.append(left, side); p.append(row);
       const nomo = h('div');
-      const fig = drawSeis(left, {
-        traces: stationTraces(true), amps: S.amps, rowH: 118,
-        onTap: (i, t, v) => { S.amps[i] = Math.abs(v); save(); fig.redraw(); drawNomo(); }
+      const fig = REF.seis5 = drawSeis(left, {
+        traces: stationTraces(true), amps: S.amps, rowH: 170,
+        onTap: (i, t, v) => { S.amps[i] = Math.abs(v); save(); fig.redraw(); drawNomo(); if (REF.syncAmps) REF.syncAmps(); }
       });
+      REF.nomo = () => drawNomo();
       side.append(nomo);
       function drawNomo() {
         nomo.innerHTML = '';
@@ -601,6 +683,13 @@
           svg('line', { x1: xm - (major ? 9 : 5), x2: xm + (major ? 9 : 5), y1: y, y2: y, stroke: RED, 'stroke-width': major ? 1.6 : 0.8 }, s);
           if (major) { const t = txt(s, xm - 13, y + 4, (m / 10).toFixed(1), { 'font-size': 12, 'text-anchor': 'end', fill: RED, 'font-weight': 700 }); t.setAttribute('paint-order', 'stroke'); t.setAttribute('stroke', '#fff'); t.setAttribute('stroke-width', 3); }
         }
+        if (S.showExample) {
+          const y1 = Y(uOf(100)), y2 = Y(vOf(10));
+          svg('line', { x1: xl, y1, x2: xr, y2, stroke: '#555', 'stroke-width': 2, 'stroke-dasharray': '6 4' }, s);
+          svg('circle', { cx: xm, cy: Y(4.0), r: 6, fill: 'none', stroke: '#555', 'stroke-width': 2 }, s);
+          const t = txt(s, xm + 12, Y(4.0) + 18, 'example: M 4.0', { 'font-size': 12, 'font-weight': 700, fill: '#444' });
+          t.setAttribute('paint-order', 'stroke'); t.setAttribute('stroke', '#fff'); t.setAttribute('stroke-width', 3);
+        }
         SC.stations.forEach((st, i) => {
           const d = S.dists[i], a = S.amps[i];
           if (d == null || a == null || a <= 0) return;
@@ -615,33 +704,50 @@
     content(c) {
       c.innerHTML = `<h2>How big was it?</h2>
       <div class="poptext">
-      <p>${T('magnitude', 'Magnitude')} is a measure of the size of the earthquake at its source. The first magnitude scale came from Charles ${T('richter', 'Richter')} in 1935, for earthquakes in southern California. He measured the biggest wiggle, the ${T('amplitude', 'amplitude')}, on a standard seismometer and corrected it for distance, because seismic waves get smaller as they spread out. So a small nearby earthquake and a larger faraway one can make the same size wiggle, and we need both numbers to tell them apart.</p>
-      <p>Look at the scale beside each seismogram. The nearest station recorded much bigger wiggles than the farthest one, even though it's the same earthquake.</p>
-      <p>Richter's scale is ${T('logarithmic', 'logarithmic')}: wiggles 10 times bigger at the same distance means 1 step higher in magnitude. To skip doing the logarithm by hand, we use a ${T('nomogram', 'nomogram')}, three number scales where a straight line from the distance to the amplitude crosses the middle scale at the magnitude.</p>
-      <div class="how"><strong>How:</strong> on each seismogram, tap at the height of the tallest S-wave peak (above or below the center line). The red dashed lines show the amplitude you measured. The nomogram then draws a line for that station from its distance to its amplitude. Read where each line crosses the red magnitude scale and enter it in the table.</div>
-      ${hint('Use the scale beside each seismogram. The top and bottom of each box are the plus and minus scale values, so a peak halfway up a box marked ±200 mm is about 100 mm.')}
-      ${hint('The three stations should give nearly the same magnitude, within a few tenths. If one is way off, check its amplitude mark.', 'Hint: a quick check')}
-      <p class="small">Today seismologists mostly report ${T('moment-magnitude', 'moment magnitude')}, which is based on the size of the fault that slipped. For earthquakes this size the two scales give similar numbers, and Richter's method is still a nice way to see how magnitude works.</p>
+      <p>${T('magnitude', 'Magnitude')} is the size of the earthquake at its source. Charles ${T('richter', 'Richter')} made the first magnitude scale in 1935. He measured the biggest wiggle on a seismogram, the ${T('amplitude', 'amplitude')}, and corrected it for distance, because seismic waves get smaller as they spread out. Look at the scales beside the seismograms - the nearest station has much bigger wiggles than the farthest one, from the same earthquake.</p>
+      <p>The ${T('nomogram', 'nomogram')} on the right does Richter's math with a straight line. A line from the distance (left scale) to the amplitude (right scale) crosses the red middle scale at the magnitude.</p>
+      <div class="how"><strong>How:</strong> on each seismogram, click at the height of the tallest S-wave peak. The red dashed lines show what you measured, and the nomogram draws a line for that station. You can also type the amplitude in the table. Then read where each line crosses the red scale and type that magnitude in the table.</div>
+      <p><button type="button" class="btn secondary" id="exBtn">${S.showExample ? 'Hide the example' : 'Show me an example'}</button></p>
+      <div class="how" id="exText" ${S.showExample ? '' : 'hidden'}><strong>Example:</strong> a station 100 km away records a biggest wiggle of 10 mm. The gray dashed line on the nomogram runs from 100 km on the left scale to 10 mm on the right scale, and it crosses the red scale at <strong>4.0</strong>. So that earthquake is about magnitude 4.0. Your stations work the same way.</div>
+      ${hint('The top and bottom edges of each seismogram box are the plus and minus scale values. So a peak halfway up a box marked \u00b1200 mm is about 100 mm.')}
+      ${hint('All three stations should give nearly the same magnitude, within a few tenths. If one is way off, check its amplitude.', 'Hint: a quick check')}
+      <p class="small">Today most earthquakes are reported with ${T('moment-magnitude', 'moment magnitude')}, which is based on the size of the fault that slipped. For earthquakes this size it gives about the same number.</p>
       </div>`;
+      c.querySelector('#exBtn').onclick = e => {
+        S.showExample = !S.showExample; save();
+        e.target.textContent = S.showExample ? 'Hide the example' : 'Show me an example';
+        c.querySelector('#exText').hidden = !S.showExample;
+        if (REF.nomo) REF.nomo();
+      };
       const tb = h('table', 'data');
       tb.innerHTML = '<tr><th>Station</th><th>Distance (km)</th><th>Amplitude (mm)</th><th>Magnitude from nomogram</th></tr>' + SC.stations.map((st, i) =>
-        `<tr><td>${stChip(i)}</td><td>${fmt(S.dists[i], 0)}</td><td class="amp${i}">${S.amps[i] != null ? (S.amps[i] < 10 ? S.amps[i].toFixed(1) : S.amps[i].toFixed(0)) : '-'}</td><td><input type="number" min="0" max="9" step="0.1" data-i="${i}" value="${S.mags[i] ?? ''}"></td></tr>`).join('')
+        `<tr><td>${stChip(i)}</td><td>${fmt(S.dists[i], 0)}</td><td><input type="number" class="ampin" min="0" step="0.1" data-i="${i}" aria-label="${st.name} amplitude in millimeters"></td><td><input type="number" class="magin" min="0" max="9" step="0.1" data-i="${i}" value="${S.mags[i] ?? ''}" aria-label="${st.name} magnitude"></td></tr>`).join('')
         + '<tr><td colspan="3" style="text-align:right"><strong>Average magnitude</strong></td><td class="avgm">-</td></tr>';
       const upAvg = () => {
         const v = S.mags.filter(x => x != null && !isNaN(x));
         tb.querySelector('.avgm').textContent = v.length === 3 ? (v.reduce((a, b) => a + b, 0) / 3).toFixed(1) : '-';
-        SC.stations.forEach((st, i) => { const td = tb.querySelector('.amp' + i); if (td) td.textContent = S.amps[i] != null ? (S.amps[i] < 10 ? S.amps[i].toFixed(1) : S.amps[i].toFixed(0)) : '-'; });
+        SC.stations.forEach((st, i) => {
+          const inp = tb.querySelector(`.ampin[data-i="${i}"]`);
+          if (inp && inp !== document.activeElement) inp.value = S.amps[i] != null ? (S.amps[i] < 10 ? S.amps[i].toFixed(1) : S.amps[i].toFixed(0)) : '';
+        });
       };
-      tb.addEventListener('input', e => { const i = +e.target.dataset.i; S.mags[i] = e.target.value === '' ? null : +e.target.value; save(); upAvg(); });
-      panel.addEventListener('pointerup', upAvg);
+      REF.syncAmps = upAvg;
+      tb.addEventListener('input', e => {
+        const i = +e.target.dataset.i;
+        if (e.target.classList.contains('magin')) { S.mags[i] = e.target.value === '' ? null : +e.target.value; save(); upAvg(); }
+        if (e.target.classList.contains('ampin')) {
+          const v = parseFloat(e.target.value); S.amps[i] = v > 0 ? v : null; save();
+          if (REF.seis5) REF.seis5.redraw(); if (REF.nomo) REF.nomo(); upAvg();
+        }
+      });
       upAvg();
-      const q = h('div', 'q'); q.innerHTML = '<div class="fb"></div>';
+      const q = h('div', 'q fbonly'); q.innerHTML = '<div class="fb"></div>';
       c.append(tb, q, checkRow(() => {
         upAvg();
         const msgs = []; let ok = true;
         SC.stations.forEach((st, i) => {
           const a = S.amps[i], m = S.mags[i];
-          if (a == null) { ok = false; msgs.push(`${st.name}: tap the seismogram to measure the amplitude.`); return; }
+          if (a == null) { ok = false; msgs.push(`${st.name}: click the seismogram, or type a value in the table, to measure the amplitude.`); return; }
           const r = a / st.amp;
           if (r < 0.75 || r > 1.3) { ok = false; msgs.push(`${st.name}: the amplitude looks ${r < 1 ? 'too small - find the tallest S-wave peak' : 'too big - set it at the top of the tallest peak, not above it'}.`); }
           if (m == null) { ok = false; msgs.push(`${st.name}: enter the magnitude where its line crosses the red scale.`); return; }
@@ -674,18 +780,21 @@
       const X = x => L + (x - X0) / (X1 - X0) * (W - L - R), Y = z => Tp + z / ZMAX * (H - Tp - B);
       const slabTop = []; for (let x = X0; x <= X1; x += 5) slabTop.push([x, EQ.slabDepthAtX(x)]);
       const P = arr => arr.map(([x, z]) => X(x).toFixed(1) + ',' + Y(z).toFixed(1)).join(' ');
-      const g0 = svg('g', {}, s), gz = svg('g', {}, s), g1 = svg('g', {}, s);
+      const cp = svg('clipPath', { id: 'xsclip' }, svg('defs', {}, s));
+      svg('rect', { x: X(X0), y: 0, width: X(X1) - X(X0), height: Y(ZMAX) }, cp);
+      const g0c = svg('g', { 'clip-path': 'url(#xsclip)' }, s);
+      const g0 = svg('g', {}, s), gz = svg('g', { 'clip-path': 'url(#xsclip)' }, s), g1 = svg('g', {}, s);
       // mantle background
-      svg('rect', { x: X(X0), y: Y(0), width: X(X1) - X(X0), height: Y(ZMAX) - Y(0), fill: '#f6e3cf' }, g0);
+      svg('rect', { x: X(X0), y: Y(0), width: X(X1) - X(X0), height: Y(ZMAX) - Y(0), fill: '#f6e3cf' }, g0c);
       // ocean water (thin)
       svg('rect', { x: X(X0), y: Y(0) - 8, width: X(40) - X(X0), height: 8, fill: '#9fcbe8' }, g0);
       // subducting slab, 45 km thick
       const slabBot = slabTop.map(([x, z]) => [x, z + 45]).reverse();
-      svg('polygon', { points: P(slabTop.concat(slabBot)), fill: '#9bb3c9', stroke: '#2c5d85', 'stroke-width': 1.5 }, g0);
+      svg('polygon', { points: P(slabTop.concat(slabBot)), fill: '#9bb3c9', stroke: '#2c5d85', 'stroke-width': 1.5 }, g0c);
       // North American crust above slab, 35 km thick
       const crust = []; for (let x = X0; x <= X1; x += 5) { const zt = EQ.slabDepthAtX(x); if (x >= 0) crust.push([x, Math.min(35, zt)]); }
-      svg('polygon', { points: P([[0, 0]].concat(crust).concat([[X1, 0]])), fill: '#e7d7b5', stroke: '#a08c62', 'stroke-width': 1 }, g0);
-      txt(g0, X(330), Y(17), 'North American plate (crust)', { 'font-size': 12, 'text-anchor': 'middle', fill: '#6b5a35' });
+      svg('polygon', { points: P([[0, 0]].concat(crust).concat([[X1, 0]])), fill: '#e7d7b5', stroke: '#a08c62', 'stroke-width': 1 }, g0c);
+      txt(g0, X(365), Y(17), 'North American plate (crust)', { 'font-size': 12, 'text-anchor': 'middle', fill: '#6b5a35' });
       txt(g0, X(300), Y(60), 'mantle', { 'font-size': 12, 'text-anchor': 'middle', fill: '#9a6b3a' });
       const lt = txt(g0, X(10), Y(28), 'Juan de Fuca plate', { 'font-size': 12, fill: '#1e4a70', 'font-weight': 700 }); lt.setAttribute('transform', `rotate(9 ${X(10)} ${Y(28)})`);
       // trench & arc
@@ -713,7 +822,7 @@
         if (zoneOn === 'intraslab') { const top = slabTop.filter(([x]) => x >= 150 && x <= 300); svg('polygon', Object.assign({ points: P(top.map(([x, z]) => [x, z + 2]).concat(top.slice().reverse().map(([x, z]) => [x, z + 20]))) }, zs), gz); }
         const cx = X(ex), cy = Y(SC.depth);
         star(g1, cx, cy, 12, RED);
-        const lb = txt(g1, cx + 14, cy + 18, `your earthquake, ${SC.depth} km deep`, { 'font-size': 12, 'font-weight': 700, fill: RED });
+        const lb = txt(g1, cx - 14, cy + 18, `your earthquake, ${SC.depth} km deep`, { 'font-size': 12, 'font-weight': 700, fill: RED, 'text-anchor': 'end' });
         lb.setAttribute('paint-order', 'stroke'); lb.setAttribute('stroke', '#fff'); lb.setAttribute('stroke-width', 4);
       }
       draw();
@@ -721,11 +830,11 @@
     content(c) {
       c.innerHTML = `<h2>What kind of earthquake was it?</h2>
       <div class="poptext">
-      <p>At the ${T('cascadia', 'Cascadia subduction zone')} the ${T('juan-de-fuca', 'Juan de Fuca plate')} moves east and sinks beneath North America at a few centimeters per year, about as fast as our fingernails grow. The cross section shows a slice through the plates at the latitude of your earthquake, and your hypocenter is the red star. Earthquakes here happen in three places, and the buttons above the cross section highlight each one.</p>
-      <p><strong>Shallow ${T('crustal', 'crustal')} earthquakes</strong> happen on faults in the North American plate, less than about 30 km deep. Here's an example: the Seattle fault, which runs right under the city, had a large earthquake about 1,100 years ago.</p>
-      <p><strong>${T('megathrust', 'Megathrust')} earthquakes</strong> happen on the boundary between the two plates, offshore and at shallow depth. This is the fault that can make a magnitude 9 earthquake and a large ${T('tsunami', 'tsunami')}. The last one was on January 26, 1700, and since then it has been very quiet.</p>
-      <p><strong>Deep ${T('intraslab', 'intraslab')} earthquakes</strong> happen inside the sinking plate as it bends and heats up, usually 40 to 70 km down beneath the Puget Sound. The 2001 Nisqually earthquake, magnitude 6.8 and about 50 km deep, was one of these.</p>
-      ${hint('Start with the depth of your earthquake from step 4 and where the star falls on the cross section. Is it in the brown crust of the North American plate, on the boundary between the plates, or inside the blue sinking plate?')}
+      <p>At the ${T('cascadia', 'Cascadia subduction zone')} the ${T('juan-de-fuca', 'Juan de Fuca plate')} sinks beneath North America a few centimeters per year, about as fast as our fingernails grow. The cross section is a slice through the plates at your earthquake, and the red star is your hypocenter. The buttons highlight the three places earthquakes happen here.</p>
+      <p><strong>Shallow ${T('crustal', 'crustal')}</strong> - faults in the North American plate, less than about 30 km deep, like the Seattle fault right under the city.</p>
+      <p><strong>${T('megathrust', 'Megathrust')}</strong> - the boundary between the two plates, offshore. This fault can make a magnitude 9 earthquake and a large ${T('tsunami', 'tsunami')}. The last one was on January 26, 1700.</p>
+      <p><strong>Deep ${T('intraslab', 'intraslab')}</strong> - inside the sinking plate, about 40 to 70 km down. The 2001 Nisqually earthquake, magnitude 6.8, was one of these.</p>
+      ${hint('Start with the depth of your earthquake and where the star falls. Is it in the brown North American crust, on the boundary between the plates, or inside the blue sinking plate?')}
       </div>`;
       const ans = { crustal: 0, megathrust: 1, intraslab: 2 }[SC.type];
       const q1 = mcq('s6q1', `Based on its depth (${SC.depth} km) and where it falls on the cross section, what kind of earthquake is yours?`,
@@ -889,28 +998,36 @@
       const err = S.epi ? EQ.haversineKm(S.epi.lat, S.epi.lon, SC.lat, SC.lon) : null;
       const avg = S.mags.reduce((a, b) => a + (b || 0), 0) / 3;
       c.innerHTML = `<h2 class="no-print">Your certificate</h2>
-      <p class="no-print">Take a screenshot of the whole certificate (or use <em>Print or save as PDF</em>) and upload it to the Canvas assignment.</p>
+      <div class="warn-box no-print"><strong>You are not done until the certificate is in Canvas.</strong>
+        <ol style="margin:4px 0 0 18px;padding:0">
+          <li>Check that your name is spelled right. <button type="button" class="linkbtn" id="fixName">Fix my name</button></li>
+          <li>Click <em>Print or save as PDF</em> below and save the PDF, or take a screenshot that shows the whole certificate, including the verification code at the bottom.</li>
+          <li>Upload it to the Canvas assignment, and check that the upload went through.</li>
+        </ol></div>
       <div class="cert">
         <h3>Certified Virtual Seismologist</h3>
         <p class="sub">Find the Earthquake - A Cascadia Seismology Lab</p>
         <p class="who">${escapeHtml(S.name)}</p>
         <p class="sub">completed all eight steps on ${when.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} at ${when.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</p>
-        <table class="data">
+        <div class="cert-grid"><table class="data">
           <tr><th>Station</th><th>S-P time (s)</th><th>Distance (km)</th><th>Amplitude (mm)</th><th>Magnitude</th></tr>
           ${SC.stations.map((st, i) => `<tr><td>${st.name}</td><td>${fmt(pickSP(i))}</td><td>${fmt(S.dists[i], 0)}</td><td>${S.amps[i] < 10 ? fmt(S.amps[i]) : fmt(S.amps[i], 0)}</td><td>${fmt(S.mags[i])}</td></tr>`).join('')}
         </table>
         <table class="data">
           <tr><th>Epicenter found</th><td>${S.epi ? S.epi.lat.toFixed(2) + '°N, ' + Math.abs(S.epi.lon).toFixed(2) + '°W' : '-'}</td></tr>
-          <tr><th>Distance from the true epicenter</th><td>${err != null ? err.toFixed(0) + ' km' : '-'}</td></tr>
+          <tr><th>Distance to true epicenter</th><td>${err != null ? err.toFixed(0) + ' km' : '-'}</td></tr>
           <tr><th>Depth</th><td>${SC.depth} km</td></tr>
           <tr><th>Magnitude found</th><td>${avg.toFixed(1)} (catalog ${SC.mag.toFixed(1)})</td></tr>
           <tr><th>Type of earthquake</th><td>${EQ.TYPE_LABEL[SC.type]}</td></tr>
           <tr><th>Warning time at ${SC.city.name}</th><td>${fmt(S.answers.s7w, 0)} s</td></tr>
-        </table>
-        <p class="sub">Scenario ${S.seed}</p>
-        <p class="code">${code}</p>
-        <p class="sub small">verification code</p>
+        </table></div>
+        <p class="code"><span class="small">Scenario</span> ${S.seed} &nbsp; <span class="small">Verification code</span> ${code}</p>
       </div>`;
+      const fx = c.querySelector('#fixName');
+      if (fx) fx.onclick = () => {
+        const nm = (prompt('Type your first and last name the way it appears in Canvas:', S.name) || '').trim().replace(/\s+/g, ' ');
+        if (nm.length >= 3 && /\s/.test(nm)) { S.name = nm; save(); go(S.step); }
+      };
       const row = h('div', 'check-row');
       const pb = h('button', 'btn', 'Print or save as PDF'); pb.type = 'button'; pb.onclick = () => window.print();
       row.append(pb); c.append(row);
@@ -946,12 +1063,18 @@
   function go(i) {
     if (!unlocked(i)) i = 0;
     S.step = i; save();
-    panelWrap.classList.toggle('nosticky', i === lastIdx || i === 0);
+    document.querySelector('main').classList.toggle('certmode', i === lastIdx);
     renderTabs(); renderPanel();
     stepEl.innerHTML = '';
     STEPS[i].content(stepEl);
+    if (i > 0 && i < lastIdx && S.seed != null) {
+      const bar = h('div', 'scen-bar', `${escapeHtml(S.name)} - scenario number <strong>${S.seed}</strong> (write it down). ${saveFailed ? 'This browser is not saving your work.' : 'Your work saves automatically in this browser.'}`);
+      stepEl.insertBefore(bar, stepEl.firstChild);
+    }
+    if (saveFailed) showStorageWarning();
     broadcast();
-    if (i > 0) { const top = tabsEl.getBoundingClientRect().top; if (top < 0) tabsEl.scrollIntoView({ behavior: 'smooth' }); }
+    const col = document.getElementById('stepCol'); if (col) col.scrollTop = 0;
+    if (i > 0 && window.innerWidth < 1000) { const top = tabsEl.getBoundingClientRect().top; if (top < 0) tabsEl.scrollIntoView({ behavior: 'smooth' }); }
   }
 
   // ---------- pop-outs ----------
