@@ -1100,7 +1100,7 @@
     if (panelWin && !panelWin.closed) { panelWin.focus(); return; }
     const w = window.open('', 'eqlabPanel', 'width=1000,height=760');
     if (!w) { alert('Your browser blocked the pop-out window. Please allow pop-ups for this page.'); return; }
-    const css = new URL('css/style.css', location.href).href;
+    const css = new URL('css/style.css?v=20261117b', location.href).href;
     w.document.open();
     w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Panel - Find the Earthquake</title><link rel="stylesheet" href="${css}"></head><body class="popwin"><div id="host"></div><div id="glossaryPop" class="gloss-pop" hidden></div></body></html>`);
     w.document.close();
