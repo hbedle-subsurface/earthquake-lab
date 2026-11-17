@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Check a Certificate - Find the Earthquake</title>
+<link rel="stylesheet" href="css/style.css">
+<meta name="robots" content="noindex">
+</head>
+<body>
+<header class="site-header">
+  <div class="title-block">
+    <h1>Check a Certificate</h1>
+    <p class="subtitle">Instructor page for Find the Earthquake</p>
+  </div>
+</header>
+<main>
+  <section id="step" style="border-radius:10px">
+    <p>Type the student's name exactly as it appears on the certificate, and the scenario number printed under the tables. This page rebuilds the same earthquake and shows the code the certificate should carry, plus the correct answers.</p>
+    <div class="q">
+      <div class="prompt">Student name</div>
+      <input id="nm" class="name-in" type="text" placeholder="First and last name">
+      <div class="prompt" style="margin-top:10px">Scenario number</div>
+      <input id="sd" type="number" placeholder="e.g. 48213">
+      <div style="margin-top:12px"><button class="btn" id="go" type="button">Check</button></div>
+    </div>
+    <div id="out"></div>
+    <p class="small">Codes are a light check against copied or edited screenshots, not a secure signature. Two students with the same name and the same scenario number would share a code, which is very unlikely by chance.</p>
+  </section>
+</main>
+<script src="js/scenario.js"></script>
+<script>
+document.getElementById('go').onclick = () => {
+  const name = document.getElementById('nm').value.trim().replace(/\s+/g, ' ');
+  const seed = parseInt(document.getElementById('sd').value, 10);
+  const out = document.getElementById('out');
+  if (!name || !(seed >= 10000 && seed <= 99999)) { out.innerHTML = '<p class="status no">Enter a name and a five-digit scenario number.</p>'; return; }
+  const sc = EQ.build(seed);
+  const code = EQ.verifyCode(name, seed);
+  out.innerHTML = `<div class="reveal">
+    <p>The certificate for <strong>${name.replace(/</g, '&lt;')}</strong>, scenario ${seed}, should show the code</p>
+    <p class="cert code" style="border:0;padding:0;background:none">${code}</p>
+    <table class="data">
+      <tr><th>Station</th><th>True S-P time (s)</th><th>True distance to hypocenter (km)</th><th>True amplitude (mm)</th></tr>
+      ${sc.stations.map(s => `<tr><td>${s.name}</td><td>${s.sp.toFixed(1)}</td><td>${s.hypo.toFixed(0)}</td><td>${s.amp < 10 ? s.amp.toFixed(1) : s.amp.toFixed(0)}</td></tr>`).join('')}
+    </table>
+    <table class="data">
+      <tr><th>Epicenter</th><td>${sc.lat.toFixed(2)}&deg;N, ${Math.abs(sc.lon).toFixed(2)}&deg;W (${sc.region.where})</td></tr>
+      <tr><th>Depth</th><td>${sc.depth} km</td></tr>
+      <tr><th>Magnitude</th><td>${sc.mag.toFixed(1)}</td></tr>
+      <tr><th>Type</th><td>${EQ.TYPE_LABEL[sc.type]}</td></tr>
+      <tr><th>Warning time at ${sc.city.name}</th><td>about ${Math.max(0, sc.city.warning).toFixed(0)} s</td></tr>
+    </table></div>`;
+};
+</script>
+</body>
+</html>
