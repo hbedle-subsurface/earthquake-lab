@@ -228,3 +228,20 @@ details.hint.stuck p { margin: .3em 0; }
 .scen-bar { background: #eef3f8; border-radius: 6px; padding: 5px 10px; font-size: .85rem; color: var(--slate); margin-bottom: 8px; }
 .linkbtn { font: inherit; background: none; border: 0; color: var(--p); text-decoration: underline; cursor: pointer; padding: 0; }
 @media (max-width: 999px) { .warn-banner { margin: 8px 0; } }
+@media (min-width: 1000px) {
+  #panelWrap .with-ctr svg.fig, #panelWrap .with-ctr .panel-row svg.fig { max-height: calc(100vh - 200px); }
+}
+@media (min-width: 1000px) and (max-width: 1249px) {
+  #panelWrap .with-ctr .panel-row:not(.keep) svg.fig { max-height: calc(100vh - 300px); }
+}
+
+.cert-layout { display: flex; gap: 18px; align-items: flex-start; }
+.cert-side { flex: 0 0 300px; }
+.cert-side h2 { margin-top: 0; }
+.cert-layout .cert { flex: 1 1 auto; margin: 0; }
+.cert-grid > div { display: flex; flex-direction: column; gap: 6px; }
+@media (max-width: 999px) { .cert-layout { flex-direction: column; } .cert-side { flex: none; } }
+table.t2tab { font-size: .82rem; }
+table.t2tab th, table.t2tab td { padding: 3px 4px; }
+table.t2tab input { width: 54px; padding: 2px 3px; }
+@media print { .cert-layout { display: block; } }

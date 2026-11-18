@@ -189,8 +189,10 @@ const EQ = (() => {
     return str.slice(0, 4) + '-' + str.slice(4, 8);
   }
 
+  function secondSeed(seed) { let x = ((seed * 48271) % 89989) + 10000; if (x === seed) x = x === 99998 ? 10001 : x + 1; return x; }
+
   const TYPE_LABEL = { crustal: 'Shallow crustal earthquake', intraslab: 'Deep intraslab earthquake', megathrust: 'Megathrust earthquake' };
 
   return { VP, VS, SP_KM, T0, REC_LEN, DT, build, trace, haversineKm, trenchLon, TRENCH, slabDepthAtX, SLAB, xEastOfTrench,
-           richterC, alertTime, warningSeconds, verifyCode, STATIONS, TYPE_LABEL, mulberry32 };
+           richterC, alertTime, warningSeconds, verifyCode, secondSeed, STATIONS, TYPE_LABEL, mulberry32 };
 })();

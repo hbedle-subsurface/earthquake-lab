@@ -16,7 +16,8 @@
 
   // ---------- state ----------
   const blank = () => ({ name: '', seed: null, step: 0, done: {}, picks: [{}, {}, {}], dists: [null, null, null],
-    radii: [null, null, null], epi: null, amps: [null, null, null], mags: [null, null, null], answers: {}, completedAt: null });
+    radii: [null, null, null], epi: null, amps: [null, null, null], mags: [null, null, null], answers: {}, completedAt: null,
+    t2: { picks: [{}, {}, {}], dists: [null, null, null], radii: [null, null, null], amps: [null, null, null], mags: [null, null, null], epi: null } });
   let S = blank();
   try { const raw = localStorage.getItem(STORE); if (raw) S = Object.assign(blank(), JSON.parse(raw)); } catch (e) { /* storage unavailable */ }
   const storageOK = (() => { try { localStorage.setItem('eqlab-test', '1'); const ok = localStorage.getItem('eqlab-test') === '1'; localStorage.removeItem('eqlab-test'); return ok; } catch (e) { return false; } })();
@@ -30,12 +31,15 @@
   }
   window.addEventListener('beforeunload', e => { if (saveFailed && S.seed != null && !S.completedAt) { e.preventDefault(); e.returnValue = ''; } });
 
-  let SC = null, TR = null;
+  let SC = null, TR = null, SC2 = null, TR2 = null;
   const REF = {};   // links panel figures and the typed-entry boxes
   function loadScenario() {
-    if (S.seed == null) { SC = null; TR = null; return; }
+    if (S.seed == null) { SC = null; TR = null; SC2 = null; TR2 = null; return; }
     SC = EQ.build(S.seed);
     TR = SC.stations.map(st => EQ.trace(st.tp, st.ts, st.amp, S.seed * 7 + st.id * 13 + 1));
+    const s2 = EQ.secondSeed(S.seed);
+    SC2 = EQ.build(s2);
+    TR2 = SC2.stations.map(st => EQ.trace(st.tp, st.ts, st.amp, s2 * 7 + st.id * 13 + 1));
   }
   loadScenario();
 
@@ -166,8 +170,8 @@
     txt(sb, MAP.W - 130 + km100 / 2, MAP.H - 21, '100 km', { 'font-size': 10, 'text-anchor': 'middle' });
     return s;
   }
-  function drawStations(s, labels = true) {
-    SC.stations.forEach((st, i) => {
+  function drawStations(s, labels = true, sc = SC) {
+    sc.stations.forEach((st, i) => {
       const [x, y] = proj(st.lat, st.lon);
       svg('polygon', { points: `${x - 7},${y - 6} ${x + 7},${y - 6} ${x},${y + 7}`, fill: ST_COLORS[i], stroke: '#fff', 'stroke-width': 1.2 }, s);
       if (labels) {
@@ -277,6 +281,72 @@
     });
   }
 
+  function ttGraph(left, side, items, title) {
+      const W = 640, H = 380, L = 58, R = 18, Tp = 14, B = 46, DMAX = 400, TMAX = 120;
+      const s = svg('svg', { viewBox: `0 0 ${W} ${H}`, class: 'fig' }, left);
+      const X = d => L + d / DMAX * (W - L - R), Y = t => H - B - t / TMAX * (H - B - Tp);
+      for (let d = 0; d <= DMAX; d += 50) { svg('line', { x1: X(d), x2: X(d), y1: Y(0), y2: Y(TMAX), stroke: d % 100 ? '#eef0f2' : '#d6d9dd' }, s); if (d % 100 === 0) txt(s, X(d), H - B + 16, d, { 'font-size': 11, 'text-anchor': 'middle', fill: SLATE }); }
+      for (let t = 0; t <= TMAX; t += 10) { svg('line', { x1: X(0), x2: X(DMAX), y1: Y(t), y2: Y(t), stroke: t % 20 ? '#eef0f2' : '#d6d9dd' }, s); if (t % 20 === 0) txt(s, L - 6, Y(t) + 4, t, { 'font-size': 11, 'text-anchor': 'end', fill: SLATE }); }
+      txt(s, X(DMAX / 2), H - 8, 'Distance from the earthquake (km)', { 'font-size': 12, 'text-anchor': 'middle', fill: SLATE });
+      const yl = txt(s, 14, Y(TMAX / 2), 'Travel time (seconds)', { 'font-size': 12, 'text-anchor': 'middle', fill: SLATE }); yl.setAttribute('transform', `rotate(-90 14 ${Y(TMAX / 2)})`);
+      svg('line', { x1: X(0), y1: Y(0), x2: X(DMAX), y2: Y(DMAX / EQ.VP), stroke: CP, 'stroke-width': 2.5 }, s);
+      svg('line', { x1: X(0), y1: Y(0), x2: X(DMAX), y2: Y(DMAX / EQ.VS), stroke: CS, 'stroke-width': 2.5 }, s);
+      txt(s, X(330), Y(330 / EQ.VP) + 18, 'P wave', { 'font-size': 13, fill: CP, 'font-weight': 700 });
+      txt(s, X(300), Y(300 / EQ.VS) - 10, 'S wave', { 'font-size': 13, fill: CS, 'font-weight': 700, 'text-anchor': 'end' });
+      const ov = svg('g', {}, s);
+      const ro = h('div', 'readout');
+      const draw = d => {
+        while (ov.firstChild) ov.removeChild(ov.firstChild);
+        const tp = d / EQ.VP, ts = d / EQ.VS;
+        svg('line', { x1: X(d), x2: X(d), y1: Y(0), y2: Y(TMAX), stroke: '#333', 'stroke-dasharray': '4 3' }, ov);
+        svg('line', { x1: X(d), x2: X(d), y1: Y(tp), y2: Y(ts), stroke: '#111', 'stroke-width': 4 }, ov);
+        svg('circle', { cx: X(d), cy: Y(tp), r: 4.5, fill: CP }, ov); svg('circle', { cx: X(d), cy: Y(ts), r: 4.5, fill: CS }, ov);
+        const lb = txt(ov, X(d) + (d > 300 ? -8 : 8), (Y(tp) + Y(ts)) / 2 + 4, `gap = ${(ts - tp).toFixed(1)} s`, { 'font-size': 13, 'font-weight': 700, 'text-anchor': d > 300 ? 'end' : 'start' });
+        lb.setAttribute('paint-order', 'stroke'); lb.setAttribute('stroke', '#fff'); lb.setAttribute('stroke-width', 4);
+        ro.innerHTML = `At <strong>${d.toFixed(0)} km</strong> the S wave arrives <strong>${(ts - tp).toFixed(1)} s</strong> after the P wave.`;
+      };
+      const ctr = h('div', 'controls'); const sl = slider('Distance:', 0, 400, 1, 100, 'km', draw); ctr.append(sl.wrap);
+      side.append(ctr, ro);
+      const list = h('div'); list.style.marginTop = '10px';
+      list.innerHTML = `<p class="small" style="margin:0 0 4px">${title}</p>` + items.map(it => `<div>${it.label}: <strong>${it.sp == null || isNaN(it.sp) ? '-' : it.sp.toFixed(1) + ' s'}</strong></div>`).join('');
+      side.append(list);
+  }
+
+  function nomogram(nomo, lines, example) {
+        nomo.innerHTML = '';
+        const W = 330, H = 612, xl = 62, xm = 165, xr = 262, top = 24, k = 50, VMAX = 9.8;
+        const s = svg('svg', { viewBox: `0 0 ${W} ${H}`, class: 'fig', role: 'img', 'aria-label': 'Magnitude nomogram' }, nomo);
+        const Y = v => top + (VMAX - v) * k;
+        const uOf = d => 2 * EQ.richterC(d / EQ.SP_KM), vOf = a => 2 * Math.log10(a);
+        txt(s, xl, 14, 'Distance', { 'font-size': 12, 'font-weight': 700, 'text-anchor': 'middle' });
+        txt(s, xm, 14, 'Magnitude', { 'font-size': 12, 'font-weight': 700, 'text-anchor': 'middle', fill: RED });
+        txt(s, xr, 14, 'Amplitude', { 'font-size': 12, 'font-weight': 700, 'text-anchor': 'middle' });
+        svg('line', { x1: xl, x2: xl, y1: Y(uOf(400)), y2: Y(uOf(20)), stroke: '#333', 'stroke-width': 2 }, s);
+        [20, 30, 50, 70, 100, 150, 200, 300, 400].forEach(d => { const y = Y(uOf(d)); svg('line', { x1: xl - 6, x2: xl, y1: y, y2: y, stroke: '#333' }, s); txt(s, xl - 9, y + 4, d + ' km', { 'font-size': 10.5, 'text-anchor': 'end' }); });
+        svg('line', { x1: xr, x2: xr, y1: Y(vOf(2000)), y2: Y(vOf(0.2)), stroke: '#333', 'stroke-width': 2 }, s);
+        [0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000].forEach(a => { const y = Y(vOf(a)); svg('line', { x1: xr, x2: xr + 6, y1: y, y2: y, stroke: '#333' }, s); txt(s, xr + 9, y + 4, a + ' mm', { 'font-size': 10.5 }); });
+        svg('line', { x1: xm, x2: xm, y1: Y(7), y2: Y(2), stroke: RED, 'stroke-width': 2 }, s);
+        for (let m = 20; m <= 70; m++) {
+          const y = Y(m / 10), major = m % 5 === 0;
+          svg('line', { x1: xm - (major ? 9 : 5), x2: xm + (major ? 9 : 5), y1: y, y2: y, stroke: RED, 'stroke-width': major ? 1.6 : 0.8 }, s);
+          if (major) { const t = txt(s, xm - 13, y + 4, (m / 10).toFixed(1), { 'font-size': 12, 'text-anchor': 'end', fill: RED, 'font-weight': 700 }); t.setAttribute('paint-order', 'stroke'); t.setAttribute('stroke', '#fff'); t.setAttribute('stroke-width', 3); }
+        }
+        if (example) {
+          const y1 = Y(uOf(100)), y2 = Y(vOf(10));
+          svg('line', { x1: xl, y1, x2: xr, y2, stroke: '#555', 'stroke-width': 2, 'stroke-dasharray': '6 4' }, s);
+          svg('circle', { cx: xm, cy: Y(4.0), r: 6, fill: 'none', stroke: '#555', 'stroke-width': 2 }, s);
+          const t = txt(s, xm + 12, Y(4.0) + 18, 'example: M 4.0', { 'font-size': 12, 'font-weight': 700, fill: '#444' });
+          t.setAttribute('paint-order', 'stroke'); t.setAttribute('stroke', '#fff'); t.setAttribute('stroke-width', 3);
+        }
+        lines.forEach(({ d, a, color }, i) => {
+          if (d == null || a == null || a <= 0) return;
+          const y1 = Y(uOf(Math.max(20, Math.min(400, d)))), y2 = Y(vOf(Math.max(0.2, Math.min(2000, a))));
+          svg('line', { x1: xl, y1, x2: xr, y2, stroke: color, 'stroke-width': 2 }, s);
+          svg('circle', { cx: xl, cy: y1, r: 4, fill: color }, s); svg('circle', { cx: xr, cy: y2, r: 4, fill: color }, s);
+        });
+        txt(s, W / 2, H - 4, 'Richter nomogram (after Bolt)', { 'font-size': 10, fill: SLATE, 'text-anchor': 'middle' });
+      }
+
   // ---------- step registry ----------
   const STEPS = [];
   const def = o => STEPS.push(o);
@@ -335,7 +405,7 @@
       <div class="poptext">
       <p>The Pacific Northwest has earthquakes every day, and most are too small to feel. The region is above the ${T('cascadia', 'Cascadia subduction zone')}, the red line offshore on the map, where the ${T('juan-de-fuca', 'Juan de Fuca plate')} sinks beneath North America.</p>
       <p>In this lab we work one earthquake the way a seismologist does: read the ${T('seismogram', 'seismograms')} from three stations, find the ${T('epicenter', 'epicenter')}, and measure the ${T('magnitude', 'magnitude')}. Then we look at what kind of earthquake it was and what it means for the people nearby.</p>
-      <p>Your earthquake is made from your name, so your numbers are different from everyone else's. Each step checks your answers and has hints. It takes about an hour to an hour and a half, and at the end you get a certificate to upload to Canvas.</p>
+      <p>Your earthquake is made from your name, so your numbers are different from everyone else's. Each step checks your answers and has hints. There are ten steps, and most people need about an hour and a half. At the end you get a certificate to upload to Canvas.</p>
       <p class="small">Click any word with a dotted underline for a short explanation.</p>
       </div>
       <div class="warn-box">
@@ -515,34 +585,7 @@
       p.append(h('p', 'panel-title', 'Travel-time curves - how long each wave takes to travel a distance'));
       const row = h('div', 'panel-row'); const left = h('div', 'grow'), side = h('div', 'side');
       row.append(left, side); p.append(row);
-      const W = 640, H = 380, L = 58, R = 18, Tp = 14, B = 46, DMAX = 400, TMAX = 120;
-      const s = svg('svg', { viewBox: `0 0 ${W} ${H}`, class: 'fig' }, left);
-      const X = d => L + d / DMAX * (W - L - R), Y = t => H - B - t / TMAX * (H - B - Tp);
-      for (let d = 0; d <= DMAX; d += 50) { svg('line', { x1: X(d), x2: X(d), y1: Y(0), y2: Y(TMAX), stroke: d % 100 ? '#eef0f2' : '#d6d9dd' }, s); if (d % 100 === 0) txt(s, X(d), H - B + 16, d, { 'font-size': 11, 'text-anchor': 'middle', fill: SLATE }); }
-      for (let t = 0; t <= TMAX; t += 10) { svg('line', { x1: X(0), x2: X(DMAX), y1: Y(t), y2: Y(t), stroke: t % 20 ? '#eef0f2' : '#d6d9dd' }, s); if (t % 20 === 0) txt(s, L - 6, Y(t) + 4, t, { 'font-size': 11, 'text-anchor': 'end', fill: SLATE }); }
-      txt(s, X(DMAX / 2), H - 8, 'Distance from the earthquake (km)', { 'font-size': 12, 'text-anchor': 'middle', fill: SLATE });
-      const yl = txt(s, 14, Y(TMAX / 2), 'Travel time (seconds)', { 'font-size': 12, 'text-anchor': 'middle', fill: SLATE }); yl.setAttribute('transform', `rotate(-90 14 ${Y(TMAX / 2)})`);
-      svg('line', { x1: X(0), y1: Y(0), x2: X(DMAX), y2: Y(DMAX / EQ.VP), stroke: CP, 'stroke-width': 2.5 }, s);
-      svg('line', { x1: X(0), y1: Y(0), x2: X(DMAX), y2: Y(DMAX / EQ.VS), stroke: CS, 'stroke-width': 2.5 }, s);
-      txt(s, X(330), Y(330 / EQ.VP) + 18, 'P wave', { 'font-size': 13, fill: CP, 'font-weight': 700 });
-      txt(s, X(300), Y(300 / EQ.VS) - 10, 'S wave', { 'font-size': 13, fill: CS, 'font-weight': 700, 'text-anchor': 'end' });
-      const ov = svg('g', {}, s);
-      const ro = h('div', 'readout');
-      const draw = d => {
-        while (ov.firstChild) ov.removeChild(ov.firstChild);
-        const tp = d / EQ.VP, ts = d / EQ.VS;
-        svg('line', { x1: X(d), x2: X(d), y1: Y(0), y2: Y(TMAX), stroke: '#333', 'stroke-dasharray': '4 3' }, ov);
-        svg('line', { x1: X(d), x2: X(d), y1: Y(tp), y2: Y(ts), stroke: '#111', 'stroke-width': 4 }, ov);
-        svg('circle', { cx: X(d), cy: Y(tp), r: 4.5, fill: CP }, ov); svg('circle', { cx: X(d), cy: Y(ts), r: 4.5, fill: CS }, ov);
-        const lb = txt(ov, X(d) + (d > 300 ? -8 : 8), (Y(tp) + Y(ts)) / 2 + 4, `gap = ${(ts - tp).toFixed(1)} s`, { 'font-size': 13, 'font-weight': 700, 'text-anchor': d > 300 ? 'end' : 'start' });
-        lb.setAttribute('paint-order', 'stroke'); lb.setAttribute('stroke', '#fff'); lb.setAttribute('stroke-width', 4);
-        ro.innerHTML = `At <strong>${d.toFixed(0)} km</strong> the S wave arrives <strong>${(ts - tp).toFixed(1)} s</strong> after the P wave.`;
-      };
-      const ctr = h('div', 'controls'); const sl = slider('Distance:', 0, 400, 1, 100, 'km', draw); ctr.append(sl.wrap);
-      side.append(ctr, ro);
-      const list = h('div'); list.style.marginTop = '10px';
-      list.innerHTML = '<p class="small" style="margin:0 0 4px">Your S-P times from step 2:</p>' + SC.stations.map((st, i) => `<div>${stChip(i)}: <strong>${pickSP(i).toFixed(1)} s</strong></div>`).join('');
-      side.append(list);
+      ttGraph(left, side, SC.stations.map((st, i) => ({ label: stChip(i), sp: pickSP(i) })), 'Your S-P times from step 2:');
     },
     content(c) {
       c.innerHTML = `<h2>Turn each S-P time into a distance</h2>
@@ -664,41 +707,7 @@
       });
       REF.nomo = () => drawNomo();
       side.append(nomo);
-      function drawNomo() {
-        nomo.innerHTML = '';
-        const W = 330, H = 612, xl = 62, xm = 165, xr = 262, top = 24, k = 50, VMAX = 9.8;
-        const s = svg('svg', { viewBox: `0 0 ${W} ${H}`, class: 'fig', role: 'img', 'aria-label': 'Magnitude nomogram' }, nomo);
-        const Y = v => top + (VMAX - v) * k;
-        const uOf = d => 2 * EQ.richterC(d / EQ.SP_KM), vOf = a => 2 * Math.log10(a);
-        txt(s, xl, 14, 'Distance', { 'font-size': 12, 'font-weight': 700, 'text-anchor': 'middle' });
-        txt(s, xm, 14, 'Magnitude', { 'font-size': 12, 'font-weight': 700, 'text-anchor': 'middle', fill: RED });
-        txt(s, xr, 14, 'Amplitude', { 'font-size': 12, 'font-weight': 700, 'text-anchor': 'middle' });
-        svg('line', { x1: xl, x2: xl, y1: Y(uOf(400)), y2: Y(uOf(20)), stroke: '#333', 'stroke-width': 2 }, s);
-        [20, 30, 50, 70, 100, 150, 200, 300, 400].forEach(d => { const y = Y(uOf(d)); svg('line', { x1: xl - 6, x2: xl, y1: y, y2: y, stroke: '#333' }, s); txt(s, xl - 9, y + 4, d + ' km', { 'font-size': 10.5, 'text-anchor': 'end' }); });
-        svg('line', { x1: xr, x2: xr, y1: Y(vOf(2000)), y2: Y(vOf(0.2)), stroke: '#333', 'stroke-width': 2 }, s);
-        [0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000].forEach(a => { const y = Y(vOf(a)); svg('line', { x1: xr, x2: xr + 6, y1: y, y2: y, stroke: '#333' }, s); txt(s, xr + 9, y + 4, a + ' mm', { 'font-size': 10.5 }); });
-        svg('line', { x1: xm, x2: xm, y1: Y(7), y2: Y(2), stroke: RED, 'stroke-width': 2 }, s);
-        for (let m = 20; m <= 70; m++) {
-          const y = Y(m / 10), major = m % 5 === 0;
-          svg('line', { x1: xm - (major ? 9 : 5), x2: xm + (major ? 9 : 5), y1: y, y2: y, stroke: RED, 'stroke-width': major ? 1.6 : 0.8 }, s);
-          if (major) { const t = txt(s, xm - 13, y + 4, (m / 10).toFixed(1), { 'font-size': 12, 'text-anchor': 'end', fill: RED, 'font-weight': 700 }); t.setAttribute('paint-order', 'stroke'); t.setAttribute('stroke', '#fff'); t.setAttribute('stroke-width', 3); }
-        }
-        if (S.showExample) {
-          const y1 = Y(uOf(100)), y2 = Y(vOf(10));
-          svg('line', { x1: xl, y1, x2: xr, y2, stroke: '#555', 'stroke-width': 2, 'stroke-dasharray': '6 4' }, s);
-          svg('circle', { cx: xm, cy: Y(4.0), r: 6, fill: 'none', stroke: '#555', 'stroke-width': 2 }, s);
-          const t = txt(s, xm + 12, Y(4.0) + 18, 'example: M 4.0', { 'font-size': 12, 'font-weight': 700, fill: '#444' });
-          t.setAttribute('paint-order', 'stroke'); t.setAttribute('stroke', '#fff'); t.setAttribute('stroke-width', 3);
-        }
-        SC.stations.forEach((st, i) => {
-          const d = S.dists[i], a = S.amps[i];
-          if (d == null || a == null || a <= 0) return;
-          const y1 = Y(uOf(Math.max(20, Math.min(400, d)))), y2 = Y(vOf(Math.max(0.2, Math.min(2000, a))));
-          svg('line', { x1: xl, y1, x2: xr, y2, stroke: ST_COLORS[i], 'stroke-width': 2 }, s);
-          svg('circle', { cx: xl, cy: y1, r: 4, fill: ST_COLORS[i] }, s); svg('circle', { cx: xr, cy: y2, r: 4, fill: ST_COLORS[i] }, s);
-        });
-        txt(s, W / 2, H - 4, 'Richter nomogram (after Bolt)', { 'font-size': 10, fill: SLATE, 'text-anchor': 'middle' });
-      }
+      function drawNomo() { nomogram(nomo, SC.stations.map((st, i) => ({ d: S.dists[i], a: S.amps[i], color: ST_COLORS[i] })), S.showExample); }
       drawNomo();
     },
     content(c) {
@@ -977,7 +986,284 @@
         ['Yes, any earthquake near the ocean makes a tsunami', 'No - it was too small and didn\'t lift a large area of seafloor', 'Yes, because it happened in the Pacific Northwest', 'Only if it happened at night'], 1,
         'Right. Damaging tsunamis come from large earthquakes, usually above magnitude 7 or so, that move a big area of the seafloor up or down. Our earthquake was much smaller than that.',
         'Think back to step 6. Which kind of earthquake makes large tsunamis, and how big does it need to be?');
-      c.append(q1, q2, q3, checkRow(() => [q1.check(), q2.check(), q3.check()].every(Boolean), 'Get my certificate →'));
+      c.append(q1, q2, q3, checkRow(() => [q1.check(), q2.check(), q3.check()].every(Boolean)));
+    }
+  });
+
+
+  // ===== Step 9: Your turn - a second earthquake =====
+  let view9 = 'seis', mode9 = 'p';
+  const sp2 = i => (S.t2.picks[i].s != null && S.t2.picks[i].p != null) ? S.t2.picks[i].s - S.t2.picks[i].p : null;
+  const chip2 = i => `<span class="chip" style="background:${ST_COLORS[i]}"></span>${SC2.stations[i].name}`;
+  def({
+    tab: '9. Your turn',
+    panel(p) {
+      const ctr = h('div', 'controls'); const seg = h('div', 'seg');
+      [['seis', '1. Seismograms'], ['tt', '2. Travel time'], ['map', '3. Map'], ['nomo', '4. Nomogram']].forEach(([k, l]) => {
+        const b = h('button', view9 === k ? 'on' : '', l); b.type = 'button'; b.onclick = () => { view9 = k; renderPanel(); }; seg.append(b);
+      });
+      ctr.append(h('span', '', 'View:'), seg); p.append(ctr);
+      const area = h('div', 'with-ctr'); p.append(area);
+      if (view9 === 'seis') {
+        const c2 = ctr; const sg = h('div', 'seg');
+        [['p', 'P wave', 'on-p'], ['s', 'S wave', 'on-s'], ['a', 'Amplitude', 'on']].forEach(([m, l, cls]) => {
+          const b = h('button', mode9 === m ? cls : '', l); b.type = 'button'; b.onclick = () => { mode9 = m; renderPanel(); }; sg.append(b);
+        });
+        c2.append(h('span', '', '&nbsp; Mark:'), sg);
+        const fig = REF.seis9 = drawSeis(area, {
+          traces: SC2.stations.map((st, i) => { const sc = niceCeil(st.amp * 1.25); return { y: TR2[i], color: ST_COLORS[i], label: st.name, scale: sc, scaleLabel: `scale ±${sc} mm` }; }),
+          picks: S.t2.picks, amps: S.t2.amps, rowH: 120,
+          onTap: (i, t, v) => {
+            if (mode9 === 'a') S.t2.amps[i] = Math.abs(v); else S.t2.picks[i][mode9] = Math.round(t * 10) / 10;
+            save(); fig.redraw(); if (REF.sync9) REF.sync9();
+          }
+        });
+      } else if (view9 === 'tt') {
+        const row = h('div', 'panel-row'); const left = h('div', 'grow'), side = h('div', 'side'); row.append(left, side); area.append(row);
+        ttGraph(left, side, SC2.stations.map((st, i) => ({ label: chip2(i), sp: sp2(i) })), 'Your S-P times:');
+      } else if (view9 === 'map') {
+        const row = h('div', 'panel-row keep'); const left = h('div', 'grow'), side = h('div', 'side');
+        left.style.maxWidth = '620px'; row.append(left, side); area.append(row);
+        const s = drawMap(left); const cg = svg('g', {}, s); drawStations(s, true, SC2); const eg = svg('g', {}, s);
+        const draw = () => {
+          while (cg.firstChild) cg.removeChild(cg.firstChild);
+          SC2.stations.forEach((st, i) => {
+            const r = S.t2.radii[i] ?? S.t2.dists[i];
+            if (r > 0) svg('polygon', { points: pts(geoCircle(st.lat, st.lon, r)), fill: ST_COLORS[i], 'fill-opacity': 0.07, stroke: ST_COLORS[i], 'stroke-width': 2.2 }, cg);
+          });
+          while (eg.firstChild) eg.removeChild(eg.firstChild);
+          if (S.t2.epi) { const [x, y] = proj(S.t2.epi.lat, S.t2.epi.lon); star(eg, x, y, 11, RED); }
+          if (S.done[9]) { const [x, y] = proj(SC2.lat, SC2.lon); svg('circle', { cx: x, cy: y, r: 6, fill: 'none', stroke: '#111', 'stroke-width': 2 }, eg); }
+        };
+        s.style.cursor = 'crosshair';
+        s.addEventListener('pointerdown', e => {
+          const pt = svgPoint(s, e); const [lat, lon] = unproj(pt.x, pt.y);
+          S.t2.epi = { lat, lon }; save(); draw(); if (REF.sync9) REF.sync9();
+        });
+        REF.map9 = draw;
+        const sc = h('div'); sc.style.display = 'grid'; sc.style.gap = '6px';
+        SC2.stations.forEach((st, i) => {
+          const sl = slider(`<span class="chip" style="background:${ST_COLORS[i]}"></span>${st.name}:<br>`, 0, 400, 1, S.t2.radii[i] ?? S.t2.dists[i] ?? 100, 'km', v => { S.t2.radii[i] = v; save(); draw(); });
+          sl.input.style.width = '190px'; sc.append(sl.wrap);
+        });
+        side.append(sc, h('div', 'small', '<br>The circles start at the distances in your table.'));
+        draw();
+      } else {
+        const wrap = h('div'); wrap.style.maxWidth = '300px'; wrap.style.margin = '0 auto'; area.append(wrap);
+        nomogram(wrap, SC2.stations.map((st, i) => ({ d: S.t2.dists[i], a: S.t2.amps[i], color: ST_COLORS[i] })), false);
+        REF.nomo9 = () => nomogram(wrap, SC2.stations.map((st, i) => ({ d: S.t2.dists[i], a: S.t2.amps[i], color: ST_COLORS[i] })), false);
+      }
+    },
+    content(c) {
+      c.innerHTML = `<h2>Your turn - a second earthquake</h2>
+      <div class="poptext">
+      <p>Here's a new earthquake with three different stations. The work is the same as steps 2 to 5, with less help this time. The <em>View</em> buttons above the panel switch between the four tools.</p>
+      <div class="how"><strong>To do:</strong>
+        <ol style="margin:4px 0 0 18px;padding:0">
+          <li><strong>Seismograms:</strong> mark the P and S arrivals at each station.</li>
+          <li><strong>Travel time:</strong> turn each S-P time into a distance and type it in the table.</li>
+          <li><strong>Map:</strong> the circles use your distances. Click where they meet.</li>
+          <li><strong>Seismograms</strong> with <em>Mark: Amplitude</em>: measure the tallest S-wave peak at each station. Then read each magnitude off the <strong>Nomogram</strong>.</li>
+        </ol>
+        Everything can also be typed in the table below.</div>
+      ${hint('The P wave is where the quiet line first changes. The S wave is where the big shaking starts.', 'Hint: P and S')}
+      ${hint('Distance is about the S-P time × 8.4 km.', 'Hint: distance')}
+      ${hint('Click in the middle of the area where all three circles overlap.', 'Hint: epicenter')}
+      ${hint('Use the scale beside each seismogram. All three magnitudes should agree within a few tenths.', 'Hint: magnitude')}
+      </div>`;
+      const tb = h('table', 'data t2tab');
+      tb.innerHTML = '<tr><th>Station</th><th>P (s)</th><th>S (s)</th><th>S-P (s)</th><th>Distance (km)</th><th>Amplitude (mm)</th><th>Magnitude</th></tr>' +
+        SC2.stations.map((st, i) => `<tr><td>${chip2(i)}</td>` +
+          ['p', 's'].map(w => `<td><input type="number" class="t2pk" data-i="${i}" data-w="${w}" step="0.1" aria-label="${st.name} ${w.toUpperCase()} arrival in seconds"></td>`).join('') +
+          `<td class="t2sp${i}">-</td>` +
+          `<td><input type="number" class="t2d" data-i="${i}" step="1" aria-label="${st.name} distance in kilometers"></td>` +
+          `<td><input type="number" class="t2a" data-i="${i}" step="0.1" aria-label="${st.name} amplitude in millimeters"></td>` +
+          `<td><input type="number" class="t2m" data-i="${i}" step="0.1" aria-label="${st.name} magnitude"></td></tr>`).join('') +
+        '<tr><td colspan="6" style="text-align:right"><strong>Average magnitude</strong></td><td class="t2avg">-</td></tr>';
+      
+      const ll = h('div', 'q');
+      ll.innerHTML = `<div class="prompt">Epicenter location</div>
+        Latitude <input type="number" step="0.01" class="lat2" aria-label="Second earthquake epicenter latitude in degrees north"> °N &nbsp;
+        Longitude <input type="number" step="0.01" class="lon2" aria-label="Second earthquake epicenter longitude in degrees west"> °W`;
+      const latIn = ll.querySelector('.lat2'), lonIn = ll.querySelector('.lon2');
+      const val = (v, d) => v == null ? '' : (+v).toFixed(d);
+      REF.sync9 = () => {
+        const act = document.activeElement;
+        SC2.stations.forEach((st, i) => {
+          tb.querySelectorAll(`.t2pk[data-i="${i}"]`).forEach(inp => { if (inp !== act) inp.value = val(S.t2.picks[i][inp.dataset.w], 1); });
+          tb.querySelector('.t2sp' + i).textContent = sp2(i) == null ? '-' : sp2(i).toFixed(1);
+          const d = tb.querySelector(`.t2d[data-i="${i}"]`); if (d !== act) d.value = val(S.t2.dists[i], 0);
+          const a = tb.querySelector(`.t2a[data-i="${i}"]`); if (a !== act) a.value = S.t2.amps[i] == null ? '' : (S.t2.amps[i] < 10 ? S.t2.amps[i].toFixed(1) : S.t2.amps[i].toFixed(0));
+          const m = tb.querySelector(`.t2m[data-i="${i}"]`); if (m !== act) m.value = val(S.t2.mags[i], 1);
+        });
+        const ms = S.t2.mags.filter(x => x != null && !isNaN(x));
+        tb.querySelector('.t2avg').textContent = ms.length === 3 ? (ms.reduce((a, b) => a + b, 0) / 3).toFixed(1) : '-';
+        if (S.t2.epi) { if (latIn !== act) latIn.value = S.t2.epi.lat.toFixed(2); if (lonIn !== act) lonIn.value = Math.abs(S.t2.epi.lon).toFixed(2); }
+      };
+      tb.addEventListener('input', e => {
+        const el = e.target, i = +el.dataset.i, v = el.value === '' ? null : +el.value;
+        if (el.classList.contains('t2pk')) S.t2.picks[i][el.dataset.w] = v;
+        if (el.classList.contains('t2d')) { S.t2.dists[i] = v; S.t2.radii[i] = v; }
+        if (el.classList.contains('t2a')) S.t2.amps[i] = v > 0 ? v : null;
+        if (el.classList.contains('t2m')) S.t2.mags[i] = v;
+        save(); REF.sync9();
+        if (REF.seis9 && view9 === 'seis') REF.seis9.redraw();
+        if (view9 !== 'seis') renderPanel();
+      });
+      ll.addEventListener('input', () => {
+        const la = parseFloat(latIn.value), lo = parseFloat(lonIn.value);
+        if (la >= 43.5 && la <= 49.5 && lo >= 118 && lo <= 127) { S.t2.epi = { lat: la, lon: -lo }; save(); if (view9 === 'map' && REF.map9) REF.map9(); }
+      });
+      const q = h('div', 'q fbonly'); q.innerHTML = '<div class="fb"></div>';
+      const rv = h('div', 'reveal'); rv.hidden = !S.done[9];
+      const fillReveal = () => { rv.innerHTML = `<strong>Your second earthquake:</strong> magnitude ${SC2.mag.toFixed(1)}, ${SC2.depth} km deep, ${SC2.region.where} (${SC2.lat.toFixed(2)}°N, ${Math.abs(SC2.lon).toFixed(2)}°W). It was a ${EQ.TYPE_LABEL[SC2.type].toLowerCase()}.`; };
+      if (S.done[9]) fillReveal();
+      c.append(tb, ll, q, checkRow(() => {
+        const msgs = []; let ok = true;
+        SC2.stations.forEach((st, i) => {
+          const pk = S.t2.picks[i];
+          if (pk.p == null || pk.s == null) { ok = false; msgs.push(`${st.name}: mark both the P and the S arrival.`); return; }
+          if (Math.abs(pk.p - st.tp) > 1.5) { ok = false; msgs.push(`${st.name}: the P mark looks ${pk.p > st.tp ? 'late' : 'early'}.`); }
+          if (Math.abs(pk.s - st.ts) > 2.0) { ok = false; msgs.push(`${st.name}: the S mark looks ${pk.s > st.ts ? 'late' : 'early'}.`); }
+        });
+        if (ok) SC2.stations.forEach((st, i) => {
+          const exp = sp2(i) * EQ.SP_KM, d = S.t2.dists[i];
+          if (d == null) { ok = false; msgs.push(`${st.name}: enter a distance.`); }
+          else if (Math.abs(d - exp) > Math.max(8, 0.06 * exp)) { ok = false; msgs.push(`${st.name}: check the distance for an S-P time of ${sp2(i).toFixed(1)} s.`); }
+        });
+        if (ok) {
+          if (!S.t2.epi) { ok = false; msgs.push('Place the epicenter on the map, or type its latitude and longitude.'); }
+          else if (EQ.haversineKm(S.t2.epi.lat, S.t2.epi.lon, SC2.lat, SC2.lon) > 25 + 0.4 * SC2.depth) { ok = false; msgs.push('The epicenter is not quite right. Look for where all three circles overlap.'); }
+        }
+        if (ok) SC2.stations.forEach((st, i) => {
+          const a = S.t2.amps[i], m = S.t2.mags[i];
+          if (a == null) { ok = false; msgs.push(`${st.name}: measure the amplitude (Seismograms view, Mark: Amplitude).`); return; }
+          const r = a / st.amp;
+          if (r < 0.75 || r > 1.3) { ok = false; msgs.push(`${st.name}: the amplitude looks ${r < 1 ? 'too small' : 'too big'}.`); }
+          if (m == null) { ok = false; msgs.push(`${st.name}: enter the magnitude from the nomogram.`); return; }
+          if (Math.abs(m - (Math.log10(a) + EQ.richterC(S.t2.dists[i] / EQ.SP_KM))) > 0.25) { ok = false; msgs.push(`${st.name}: read the nomogram again for this station.`); }
+        });
+        if (ok && Math.abs(S.t2.mags.reduce((a, b) => a + b, 0) / 3 - SC2.mag) > 0.3) { ok = false; msgs.push('The average magnitude is a little off. Check the amplitudes.'); }
+        q.className = 'q ' + (ok ? 'good' : 'bad');
+        q.querySelector('.fb').innerHTML = ok ? 'Nice work - you located and measured this one on your own.' : msgs.slice(0, 6).join('<br>');
+        if (ok) { S.done[9] = true; fillReveal(); rv.hidden = false; if (view9 === 'map') renderPanel(); }
+        return ok;
+      }), rv);
+      REF.sync9();
+    }
+  });
+
+  // ===== Step 10: Forecast, not prediction =====
+  // Mean turbidite ages (calibrated years before 1950) for numbered events T1-T18,
+  // Goldfinger and others (2012), USGS Professional Paper 1661-F, table 10.
+  // T1 is set to the historical date, January 1700.
+  const TURB_BP = [265, 481, 796, 1243, 1554, 2536, 3028, 3443, 4108, 4770, 5959, 6466, 7182, 7625, 8173, 8906, 9101, 9795];
+  const TURB_YR = TURB_BP.map((bp, k) => k === 0 ? 1700 : 1950 - bp);       // calendar year (negative = BCE)
+  const GAPS = TURB_YR.slice(0, -1).map((y, k) => y - TURB_YR[k + 1]);      // 17 gaps, youngest first
+  const fmtYr = y => y >= 0 ? `${y} CE` : `${(-y).toLocaleString('en-US')} BCE`;
+  def({
+    tab: '10. When is the next one?',
+    panel(p) {
+      p.append(h('p', 'panel-title', 'Large Cascadia earthquakes in the deep-sea record (Goldfinger and others, 2012)'));
+      const now = new Date().getFullYear();
+      const W = 760, L = 30, R = 20;
+      // timeline
+      const tl = svg('svg', { viewBox: `0 0 ${W} 120`, class: 'fig' }, p);
+      const YMIN = -8000, YMAX = 2200;
+      const X = y => L + (y - YMIN) / (YMAX - YMIN) * (W - L - R);
+      svg('line', { x1: X(YMIN), x2: X(YMAX), y1: 60, y2: 60, stroke: '#333', 'stroke-width': 2 }, tl);
+      for (let y = -8000; y <= 2000; y += 1000) {
+        svg('line', { x1: X(y), x2: X(y), y1: 60, y2: 66, stroke: '#333' }, tl);
+        txt(tl, X(y), 80, y === 0 ? '0' : y < 0 ? `${(-y).toLocaleString('en-US')} BCE` : `${y} CE`, { 'font-size': 10.5, 'text-anchor': 'middle', fill: SLATE });
+      }
+      txt(tl, X(now), 108, `today (${now})`, { 'font-size': 11, 'text-anchor': 'end', fill: SLATE });
+      svg('line', { x1: X(now), x2: X(now), y1: 46, y2: 66, stroke: SLATE, 'stroke-dasharray': '3 2' }, tl);
+      const hl = svg('g', {}, tl);
+      TURB_YR.forEach((y, k) => {
+        svg('polygon', { points: `${X(y)},${58} ${X(y) - 5},${46} ${X(y) + 5},${46}`, fill: RED }, tl);
+        if (k === 0 || k === 17 || k % 3 === 0) txt(tl, X(y), 40, 'T' + (k + 1), { 'font-size': 10, 'text-anchor': 'middle', fill: RED });
+      });
+      // histogram
+      const hs = svg('svg', { viewBox: `0 0 ${W} 230`, class: 'fig' }, p);
+      const HL = 50, HB = 40, HT = 14, GMAX = 1400, CMAX = 5;
+      const HX = g => HL + g / GMAX * (W - HL - R), HY = c => 230 - HB - c / CMAX * (230 - HB - HT);
+      for (let c = 0; c <= CMAX; c++) { svg('line', { x1: HX(0), x2: HX(GMAX), y1: HY(c), y2: HY(c), stroke: '#e3e5e8' }, hs); txt(hs, HL - 6, HY(c) + 4, c, { 'font-size': 10.5, 'text-anchor': 'end', fill: SLATE }); }
+      for (let g = 0; g <= GMAX; g += 200) txt(hs, HX(g), 230 - HB + 15, g, { 'font-size': 10.5, 'text-anchor': 'middle', fill: SLATE });
+      txt(hs, HX(GMAX / 2), 226, 'Length of the gap between earthquakes (years)', { 'font-size': 12, 'text-anchor': 'middle', fill: SLATE });
+      const yl = txt(hs, 12, HY(CMAX / 2), 'Number of gaps', { 'font-size': 11, 'text-anchor': 'middle', fill: SLATE }); yl.setAttribute('transform', `rotate(-90 12 ${HY(CMAX / 2)})`);
+      const bars = svg('g', {}, hs), ov = svg('g', {}, hs);
+      const ro = h('div', 'readout'), ro2 = h('div', 'readout');
+      let sel = 1, yr = now;
+      function draw() {
+        while (hl.firstChild) hl.removeChild(hl.firstChild);
+        const a = TURB_YR[sel], b = TURB_YR[sel - 1];
+        svg('rect', { x: X(a), y: 44, width: Math.max(2, X(b) - X(a)), height: 16, fill: '#ffd400', opacity: 0.6 }, hl);
+        const t = txt(hl, (X(a) + X(b)) / 2, 18, `T${sel + 1} to T${sel}: ${GAPS[sel - 1].toLocaleString('en-US')} years`, { 'font-size': 12, 'font-weight': 700, 'text-anchor': 'middle' });
+        t.setAttribute('paint-order', 'stroke'); t.setAttribute('stroke', '#fff'); t.setAttribute('stroke-width', 3);
+        ro.innerHTML = `T${sel + 1} (about ${fmtYr(a)}) to T${sel} (about ${fmtYr(b)}): <strong>${GAPS[sel - 1].toLocaleString('en-US')} years</strong>`;
+        while (bars.firstChild) bars.removeChild(bars.firstChild);
+        while (ov.firstChild) ov.removeChild(ov.firstChild);
+        const since = yr - 1700;
+        for (let g0 = 0; g0 < GMAX; g0 += 100) {
+          const n = GAPS.filter(g => g >= g0 && g < g0 + 100).length;
+          if (!n) continue;
+          const shorter = g0 + 100 <= since;
+          svg('rect', { x: HX(g0) + 1, y: HY(n), width: HX(100) - HX(0) - 2, height: HY(0) - HY(n), fill: shorter ? '#9aa3ab' : '#c0392b', rx: 2 }, bars);
+          if (GAPS[sel - 1] >= g0 && GAPS[sel - 1] < g0 + 100) svg('rect', { x: HX(g0) + 1, y: HY(n), width: HX(100) - HX(0) - 2, height: HY(0) - HY(n), fill: 'none', stroke: '#b38f00', 'stroke-width': 3, rx: 2 }, bars);
+        }
+        svg('line', { x1: HX(since), x2: HX(since), y1: HY(CMAX), y2: HY(0), stroke: CP, 'stroke-width': 3 }, ov);
+        const lb = txt(ov, HX(since) + 6, HY(CMAX) + 12, `${yr}: ${since} years since 1700`, { 'font-size': 12, 'font-weight': 700, fill: CP });
+        lb.setAttribute('paint-order', 'stroke'); lb.setAttribute('stroke', '#fff'); lb.setAttribute('stroke-width', 3);
+        const k = GAPS.filter(g => g < since).length;
+        ro2.innerHTML = `In <strong>${yr}</strong>, it has been <strong>${since} years</strong> since 1700. <strong>${k} of the 17</strong> past gaps were shorter than that (gray bars).`;
+      }
+      const ctr = h('div', 'controls');
+      const s1 = slider('Look at a gap:', 1, 17, 1, 1, '', v => { sel = v; draw(); });
+      const s2 = slider('Year:', now, now + 300, 1, now, '', v => { yr = v; draw(); });
+      s1.out.hidden = true; s2.out.hidden = true;
+      ctr.append(s1.wrap, s2.wrap); p.insertBefore(ctr, tl);
+      p.append(ro, ro2);
+      draw();
+    },
+    content(c) {
+      c.innerHTML = `<h2>When is the next one?</h2>
+      <div class="poptext">
+      <p>No one can predict the day, month or year of an earthquake. What scientists can make is a ${T('forecast', 'forecast')}: the chance of an earthquake in a span of time, based on how often earthquakes have happened before.</p>
+      <p>For Cascadia, that history is recorded in the deep sea. Strong shaking sets off underwater landslides of mud and sand that leave layers called ${T('turbidite', 'turbidites')} on the seafloor. Goldfinger and others (2012) dated these layers in cores from along the margin and found 18 large earthquakes, T1 to T18, in about the last 10,000 years. T1 is the January 1700 earthquake.</p>
+      <p>The timeline shows when they happened. The bar chart sorts the 17 gaps between them by length. The <em>Year</em> slider shows how the time since 1700 compares with those gaps, now and in the future.</p>
+      ${hint('There are 17 gaps between 18 earthquakes. The oldest, T18, was about 7,845 BCE and the youngest, T1, was 1700 CE, which is 9,545 years apart. The average gap is that time divided by 17.', 'Hint: the average gap')}
+      ${hint('Use the <em>Look at a gap</em> slider and watch the bar chart: the shortest gap is the bar farthest left and the longest is the bar farthest right.', 'Hint: shortest and longest')}
+      </div>`;
+      const q1 = h('div', 'q');
+      q1.innerHTML = `<div class="prompt">What is the average gap between these 18 earthquakes, in years?</div>
+        <input type="number" step="1" value="${S.answers.s10avg ?? ''}" aria-label="Average gap in years"> years <div class="fb"></div>`;
+      q1.querySelector('input').addEventListener('input', e => { S.answers.s10avg = e.target.value === '' ? null : +e.target.value; save(); });
+      const avg = (TURB_YR[0] - TURB_YR[17]) / 17;
+      q1.check = () => {
+        const v = S.answers.s10avg, ok = v != null && Math.abs(v - avg) <= 30;
+        q1.className = 'q ' + (ok ? 'good' : 'bad');
+        q1.querySelector('.fb').innerHTML = v == null ? 'Enter a number.' : ok ? `Right, about ${Math.round(avg)} years.` : 'Not quite. Open the hint about the average gap.';
+        return ok;
+      };
+      const q2 = mcq('s10q2', 'About how long were the shortest and the longest gaps?',
+        ['About 50 and about 500 years', 'About 200 and about 1,200 years', 'About 500 and about 600 years - they are all close to the average', 'About 1,000 and about 5,000 years'], 1,
+        'Right. The shortest gap was about 200 years and the longest was about 1,200 years.',
+        'Move the <em>Look at a gap</em> slider through all 17 gaps, or look at the leftmost and rightmost bars.');
+      const q3 = mcq('s10q3', `Adding the average gap to 1700 gives about ${1700 + Math.round(avg)}. Does that mean the next large Cascadia earthquake will happen around ${1700 + Math.round(avg)}?`,
+        ['Yes, earthquakes happen on a regular schedule', 'No - the gaps have ranged from about 200 to about 1,200 years, so the average can\'t tell us the year', 'Yes, because the last gap was exactly average', 'No, because Cascadia will never have another large earthquake'], 1,
+        'Right. The gaps vary a lot, and so the history gives us a chance over a span of time, not a date.',
+        'Look at how spread out the bars are.');
+      const q4 = mcq('s10q4', 'Which statement is a scientific forecast?',
+        ['A magnitude 9 earthquake will hit Cascadia on March 3, 2031', 'There is about a 10 to 15 percent chance of a magnitude 9 Cascadia earthquake in the next 50 years', 'Earthquakes happen in hot, still "earthquake weather"', 'Animals acting strangely mean an earthquake will happen tomorrow'], 1,
+        'Right. This is the USGS forecast (Wirth and others, 2025). It gives a chance over 50 years, roughly the lifetime of a building, not a date.',
+        'A forecast gives a chance over a span of time. The others give an exact date or are myths.');
+      const q5 = mcq('s10q5', 'The USGS gives about an 85 percent chance of a deep intraslab earthquake of magnitude 6.5 or larger beneath the Puget Sound in the next 50 years, but only about 10 to 15 percent for a Cascadia magnitude 9. Why is the deep earthquake so much more likely?',
+        ['Deep intraslab earthquakes are smaller and happen much more often - about every 26 years on average', 'The USGS made a mistake', 'Deep earthquakes are bigger than megathrust earthquakes', 'Magnitude 9 earthquakes cannot happen in Washington'], 0,
+        'Right. Smaller earthquakes happen much more often than great ones. The 1949, 1965 and 2001 Puget Sound earthquakes were all deep intraslab earthquakes.',
+        'Think back to step 8. Which happen more often - small earthquakes or huge ones?');
+      c.append(q1, q2, q3, q4, q5, checkRow(() => [q1.check(), q2.check(), q3.check(), q4.check(), q5.check()].every(Boolean), 'Get my certificate →'));
+      const src = h('p', 'small poptext', 'Sources: Goldfinger, C., and others, 2012, Turbidite event history, USGS Professional Paper 1661-F. Wirth, E., and others, 2025, Earthquake probabilities and hazards in the U.S. Pacific Northwest, USGS Fact Sheet 2025-3050.');
+      c.append(src);
     }
   });
 
@@ -997,40 +1283,49 @@
       const code = EQ.verifyCode(S.name, S.seed);
       const err = S.epi ? EQ.haversineKm(S.epi.lat, S.epi.lon, SC.lat, SC.lon) : null;
       const avg = S.mags.reduce((a, b) => a + (b || 0), 0) / 3;
-      c.innerHTML = `<h2 class="no-print">Your certificate</h2>
-      <div class="warn-box no-print"><strong>You are not done until the certificate is in Canvas.</strong>
+      const avg2 = S.t2.mags.reduce((a, b) => a + (b || 0), 0) / 3;
+      const err2 = S.t2.epi ? EQ.haversineKm(S.t2.epi.lat, S.t2.epi.lon, SC2.lat, SC2.lon) : null;
+      c.innerHTML = `<div class="cert-layout">
+      <div class="cert-side no-print">
+        <h2>Your certificate</h2>
+        <div class="warn-box"><strong>You are not done until the certificate is in Canvas.</strong>
         <ol style="margin:4px 0 0 18px;padding:0">
           <li>Check that your name is spelled right. <button type="button" class="linkbtn" id="fixName">Fix my name</button></li>
-          <li>Click <em>Print or save as PDF</em> below and save the PDF, or take a screenshot that shows the whole certificate, including the verification code at the bottom.</li>
+          <li>Click <em>Print or save as PDF</em> and save the PDF, or take a screenshot that shows the whole certificate, including the verification code at the bottom.</li>
           <li>Upload it to the Canvas assignment, and check that the upload went through.</li>
         </ol></div>
+        <p><button type="button" class="btn" id="printBtn">Print or save as PDF</button></p>
+      </div>
       <div class="cert">
         <h3>Certified Virtual Seismologist</h3>
         <p class="sub">Find the Earthquake - A Cascadia Seismology Lab</p>
         <p class="who">${escapeHtml(S.name)}</p>
-        <p class="sub">completed all eight steps on ${when.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} at ${when.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</p>
-        <div class="cert-grid"><table class="data">
-          <tr><th>Station</th><th>S-P time (s)</th><th>Distance (km)</th><th>Amplitude (mm)</th><th>Magnitude</th></tr>
+        <p class="sub">completed all ten steps on ${when.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })} at ${when.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</p>
+        <div class="cert-grid"><div>
+        <table class="data">
+          <tr><th>Station</th><th>S-P (s)</th><th>Distance (km)</th><th>Amplitude (mm)</th><th>M</th></tr>
           ${SC.stations.map((st, i) => `<tr><td>${st.name}</td><td>${fmt(pickSP(i))}</td><td>${fmt(S.dists[i], 0)}</td><td>${S.amps[i] < 10 ? fmt(S.amps[i]) : fmt(S.amps[i], 0)}</td><td>${fmt(S.mags[i])}</td></tr>`).join('')}
         </table>
         <table class="data">
-          <tr><th>Epicenter found</th><td>${S.epi ? S.epi.lat.toFixed(2) + '°N, ' + Math.abs(S.epi.lon).toFixed(2) + '°W' : '-'}</td></tr>
-          <tr><th>Distance to true epicenter</th><td>${err != null ? err.toFixed(0) + ' km' : '-'}</td></tr>
+          <tr><th>Second earthquake</th><td>M ${avg2.toFixed(1)} (catalog ${SC2.mag.toFixed(1)}), epicenter ${err2 != null ? err2.toFixed(0) : '-'} km off</td></tr>
+          <tr><th>Average Cascadia gap</th><td>${fmt(S.answers.s10avg, 0)} years</td></tr>
+        </table></div>
+        <table class="data">
+          <tr><th>Epicenter found</th><td>${S.epi ? S.epi.lat.toFixed(2) + '\u00b0N, ' + Math.abs(S.epi.lon).toFixed(2) + '\u00b0W' : '-'}</td></tr>
+          <tr><th>Epicenter error</th><td>${err != null ? err.toFixed(0) + ' km' : '-'}</td></tr>
           <tr><th>Depth</th><td>${SC.depth} km</td></tr>
           <tr><th>Magnitude found</th><td>${avg.toFixed(1)} (catalog ${SC.mag.toFixed(1)})</td></tr>
-          <tr><th>Type of earthquake</th><td>${EQ.TYPE_LABEL[SC.type]}</td></tr>
-          <tr><th>Warning time at ${SC.city.name}</th><td>${fmt(S.answers.s7w, 0)} s</td></tr>
+          <tr><th>Type</th><td>${EQ.TYPE_LABEL[SC.type]}</td></tr>
+          <tr><th>Warning at ${SC.city.name}</th><td>${fmt(S.answers.s7w, 0)} s</td></tr>
         </table></div>
         <p class="code"><span class="small">Scenario</span> ${S.seed} &nbsp; <span class="small">Verification code</span> ${code}</p>
-      </div>`;
+      </div></div>`;
+      c.querySelector('#printBtn').onclick = () => window.print();
       const fx = c.querySelector('#fixName');
       if (fx) fx.onclick = () => {
         const nm = (prompt('Type your first and last name the way it appears in Canvas:', S.name) || '').trim().replace(/\s+/g, ' ');
         if (nm.length >= 3 && /\s/.test(nm)) { S.name = nm; save(); go(S.step); }
       };
-      const row = h('div', 'check-row');
-      const pb = h('button', 'btn', 'Print or save as PDF'); pb.type = 'button'; pb.onclick = () => window.print();
-      row.append(pb); c.append(row);
     }
   });
 
@@ -1100,7 +1395,7 @@
     if (panelWin && !panelWin.closed) { panelWin.focus(); return; }
     const w = window.open('', 'eqlabPanel', 'width=1000,height=760');
     if (!w) { alert('Your browser blocked the pop-out window. Please allow pop-ups for this page.'); return; }
-    const css = new URL('css/style.css?v=20261117b', location.href).href;
+    const css = new URL('css/style.css?v=20261117c', location.href).href;
     w.document.open();
     w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Panel - Find the Earthquake</title><link rel="stylesheet" href="${css}"></head><body class="popwin"><div id="host"></div><div id="glossaryPop" class="gloss-pop" hidden></div></body></html>`);
     w.document.close();

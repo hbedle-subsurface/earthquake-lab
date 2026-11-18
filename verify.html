@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Check a Certificate - Find the Earthquake</title>
-<link rel="stylesheet" href="css/style.css?v=20261117b">
+<link rel="stylesheet" href="css/style.css?v=20261117c">
 <meta name="robots" content="noindex">
 </head>
 <body>
@@ -28,14 +28,14 @@
     <p class="small">Codes are a light check against copied or edited screenshots, not a secure signature. Two students with the same name and the same scenario number would share a code, which is very unlikely by chance.</p>
   </section>
 </main>
-<script src="js/scenario.js?v=20261117b"></script>
+<script src="js/scenario.js?v=20261117c"></script>
 <script>
 document.getElementById('go').onclick = () => {
   const name = document.getElementById('nm').value.trim().replace(/\s+/g, ' ');
   const seed = parseInt(document.getElementById('sd').value, 10);
   const out = document.getElementById('out');
   if (!name || !(seed >= 10000 && seed <= 99999)) { out.innerHTML = '<p class="status no">Enter a name and a five-digit scenario number.</p>'; return; }
-  const sc = EQ.build(seed);
+  const sc = EQ.build(seed), sc2 = EQ.build(EQ.secondSeed(seed));
   const code = EQ.verifyCode(name, seed);
   out.innerHTML = `<div class="reveal">
     <p>The certificate for <strong>${name.replace(/</g, '&lt;')}</strong>, scenario ${seed}, should show the code</p>
@@ -50,7 +50,14 @@ document.getElementById('go').onclick = () => {
       <tr><th>Magnitude</th><td>${sc.mag.toFixed(1)}</td></tr>
       <tr><th>Type</th><td>${EQ.TYPE_LABEL[sc.type]}</td></tr>
       <tr><th>Warning time at ${sc.city.name}</th><td>about ${Math.max(0, sc.city.warning).toFixed(0)} s</td></tr>
-    </table></div>`;
+    </table>
+    <p><strong>Step 9, second earthquake</strong> (scenario ${EQ.secondSeed(seed)})</p>
+    <table class="data">
+      <tr><th>Station</th><th>True S-P time (s)</th><th>True distance to hypocenter (km)</th><th>True amplitude (mm)</th></tr>
+      ${sc2.stations.map(s => `<tr><td>${s.name}</td><td>${s.sp.toFixed(1)}</td><td>${s.hypo.toFixed(0)}</td><td>${s.amp < 10 ? s.amp.toFixed(1) : s.amp.toFixed(0)}</td></tr>`).join('')}
+      <tr><th>Epicenter</th><td colspan="3">${sc2.lat.toFixed(2)}&deg;N, ${Math.abs(sc2.lon).toFixed(2)}&deg;W, depth ${sc2.depth} km, magnitude ${sc2.mag.toFixed(1)}</td></tr>
+    </table>
+    <p><strong>Step 10:</strong> average gap between the 18 turbidite earthquakes is about 561 years (accepted 531 to 591).</p></div>`;
 };
 </script>
 </body>

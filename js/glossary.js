@@ -34,6 +34,8 @@ const GLOSSARY = {
   'logarithmic': ['Logarithmic scale', 'A scale where each step multiplies by the same amount. On the magnitude scale, going up by 1 multiplies the wiggle size by 10.'],
   'energy': ['Seismic energy', 'The energy carried away from the fault by seismic waves. Each step of 1 in magnitude releases about 32 times more energy, and each step of 2 about 1,000 times more.'],
   'volcanic-arc': ['Volcanic arc', 'A line of volcanoes above a subduction zone. Water released from the sinking plate helps melt the mantle above it, at roughly 100 km depth. The Cascade volcanoes - Mount Baker, Rainier, St. Helens, Hood and others - are the volcanic arc of Cascadia.'],
+  'forecast': ['Earthquake forecast', 'The chance that an earthquake of a certain size will happen in a certain area within a span of time, like 10 percent in 50 years. Forecasts come from how often earthquakes have happened in the past. A prediction would give an exact date, place and size, and no one can do that for earthquakes.'],
+  'turbidite': ['Turbidite', 'A layer of sand and mud left on the seafloor by a turbidity current, an underwater landslide that flows down a submarine canyon. Strong earthquake shaking can set off turbidity currents all along a coast at once, and so dated turbidites record past earthquakes.'],
   'mantle': ['Mantle', 'The thick layer of hot, solid rock beneath the crust. Over long times it flows very slowly.']
 };
 

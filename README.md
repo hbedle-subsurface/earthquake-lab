@@ -16,8 +16,10 @@ I built this lab for my online gen ed course on volcanoes and earthquakes at the
 6. **What kind?** - place the hypocenter on a cross section through Cascadia: shallow crustal, megathrust or deep intraslab.
 7. **Seconds of warning** - see how earthquake early warning (ShakeAlert) uses the gap between P and S waves.
 8. **How big is big?** - compare the energy of their earthquake with Pawnee, Oklahoma (2016), Nisqually (2001) and the Cascadia earthquake of 1700.
+9. **Your turn** - locate and measure a second earthquake on their own, with the hints tucked away.
+10. **When is the next one?** - use the 10,000-year deep-sea turbidite record of Cascadia earthquakes (Goldfinger and others, 2012) to see the difference between a prediction and a forecast, and compare with the current USGS probabilities (Wirth and others, 2025).
 
-Every step has something to move or tap, checks answers as students go, and has plain-language hints. When all eight steps are done, the lab makes a certificate with a verification code that students upload to the course site. Most students need about an hour to an hour and a half.
+Every step has something to move or click, checks answers as students go, and has plain-language hints. When all ten steps are done, the lab makes a certificate with a verification code that students upload to the course site. Most students need about an hour and a half.
 
 Words with a dotted underline open a short glossary entry. The interactive panel and the instructions can each be popped out into their own window.
 
@@ -27,7 +29,7 @@ See [INSTRUCTOR.md](INSTRUCTOR.md) for grading notes and a suggested assignment 
 
 ## A note on the science
 
-The seismograms are synthetic, made from simple wave packets with P and S speeds of 6.0 and 3.5 km/s. The map, the trench line and the slab geometry are simplified for teaching and are not research models. Magnitude uses Richter's (1935) local magnitude relation in the nomogram form popularized by Bolt. Today most earthquakes are reported with moment magnitude, and the lab says so. The style of the exercise follows the long tradition of virtual earthquake labs, especially Gary Novak's *Virtual Earthquake* at California State University, Los Angeles.
+The seismograms are synthetic, made from simple wave packets with P and S speeds of 6.0 and 3.5 km/s. The map, the trench line and the slab geometry are simplified for teaching and are not research models. Magnitude uses Richter's (1935) local magnitude relation in the nomogram form popularized by Bolt. Today most earthquakes are reported with moment magnitude, and the lab says so. The earthquake history in step 10 uses the mean ages of turbidite events T1 to T18 from Goldfinger and others (2012, USGS Professional Paper 1661-F, table 10), with T1 set to the historical date of January 1700. The probabilities quoted come from USGS Fact Sheet 2025-3050 (Wirth and others, 2025). The style of the exercise follows the long tradition of virtual earthquake labs, especially Gary Novak's *Virtual Earthquake* at California State University, Los Angeles.
 
 ## License
 
